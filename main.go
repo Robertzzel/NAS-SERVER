@@ -1,44 +1,75 @@
 package main
 
 import (
-	"NAS-Server-Web/routes"
-	"NAS-Server-Web/services/configsService"
+	"NAS-Server-Web/commands"
+	"NAS-Server-Web/models"
+	"NAS-Server-Web/services"
 	"fmt"
-	"github.com/gorilla/mux"
-	"log"
-	"net/http"
+	"net"
 )
 
+func handleConnection(c net.Conn) {
+	defer c.Close()
+	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
+
+	user := models.NewUser()
+	connection := models.NewMessageHandler(c)
+	for {
+		rawMessage, err := connection.Read()
+		if err != nil {
+			return
+		}
+
+		message, err := models.NewMessage(rawMessage)
+		if err != nil {
+			continue
+		}
+
+		switch message.Command {
+		case commands.UploadFile:
+			commands.HandleUploadCommand(connection, &user, &message)
+		case commands.DownloadFileOrDirectory:
+			commands.HandleDownloadFileOrDirectory(connection, &user, &message)
+			c.Close()
+		case commands.CreateDirectory:
+			commands.HandleCreateDirectoryCommand(connection, &user, &message)
+		case commands.RemoveFileOrDirectory:
+			commands.HandleRemoveFileOrDirectoryCommand(connection, &user, &message)
+		case commands.RenameFileOrDirectory:
+			commands.HandleRenameFileOrDirectoryCommand(connection, &user, &message)
+		case commands.Login:
+			commands.HandleLoginCommand(connection, &user, &message)
+		case commands.ListFilesAndDirectories:
+			commands.HandleListFilesAndDirectoriesCommand(connection, &user, &message)
+		default:
+			continue
+		}
+	}
+}
+
 func main() {
-	configs, err := configsService.NewConfigsService()
+	println("Starting server...")
+	service, err := services.NewConfigsService()
 	if err != nil {
 		panic(err)
 	}
 
-	r := mux.NewRouter()
+	address := service.GetHost() + ":" + service.GetPort()
 
-	fs := http.FileServer(http.Dir("./static/"))
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fs))
+	l, err := net.Listen("tcp4", address)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer l.Close()
 
-	r.HandleFunc("/", routes.Redirect).Methods("GET")
-
-	r.HandleFunc("/login", routes.LoginGet).Methods("GET")
-	r.HandleFunc("/login", routes.LoginPost).Methods("POST")
-
-	r.HandleFunc("/home/{path:.*}", routes.HomeGet).Methods("GET")
-
-	r.HandleFunc("/delete/{path:.*}", routes.DeleteGet).Methods("GET")
-
-	r.HandleFunc("/file/{path:.*}", routes.DownloadGet).Methods("GET")
-
-	r.HandleFunc("/inline/{path:.*}", routes.InlineFileGet).Methods("GET")
-
-	r.HandleFunc("/rename", routes.RenamePost).Methods("POST")
-
-	r.HandleFunc("/create", routes.CreatePost).Methods("POST")
-
-	r.HandleFunc("/upload", routes.UploadFilesPost).Methods("POST")
-
-	fmt.Println("Starting on " + configs.GetHost() + ":" + configs.GetPort())
-	log.Fatal(http.ListenAndServeTLS(configs.GetHost()+":"+configs.GetPort(), configs.GetCertificateFilePath(), configs.GetKeyFilePath(), r))
+	println("Server started on " + address)
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		go handleConnection(c)
+	}
 }
