@@ -1,9 +1,8 @@
-package configsService
+package services
 
 import (
 	"encoding/json"
 	"os"
-	"strconv"
 )
 
 const (
@@ -15,14 +14,13 @@ var (
 )
 
 type ConfigsService struct {
-	data          map[string]string
-	host          string
-	port          string
-	databasePath  string
-	baseFilesBath string
+	data                map[string]string
+	host                string
+	port                string
+	databasePath        string
+	baseFilesBath       string
 	certificateFilePath string
-	keyFilePath string
-	memoryPerUser int64
+	keyFilePath         string
 }
 
 func NewConfigsService() (*ConfigsService, error) {
@@ -43,7 +41,6 @@ func NewConfigsService() (*ConfigsService, error) {
 		serviceInstance.baseFilesBath = serviceInstance.data["baseFilesPath"]
 		serviceInstance.certificateFilePath = serviceInstance.data["certificateFilePath"]
 		serviceInstance.keyFilePath = serviceInstance.data["keyFilePath"]
-		serviceInstance.memoryPerUser, err = strconv.ParseInt(serviceInstance.data["memoryPerUser"], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -66,10 +63,6 @@ func (service ConfigsService) GetDatabasePath() string {
 
 func (service ConfigsService) GetBaseFilesPath() string {
 	return service.baseFilesBath
-}
-
-func (service ConfigsService) GetMemoryPerUser() int64 {
-	return service.memoryPerUser
 }
 
 func (service ConfigsService) GetCertificateFilePath() string {

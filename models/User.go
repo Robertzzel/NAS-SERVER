@@ -1,6 +1,11 @@
 package models
 
 type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	IsAuthenticated   bool
+	Name              string
+	UserRootDirectory string
+}
+
+func NewUser() User {
+	return User{}
 }
