@@ -62,6 +62,8 @@ func HandleUploadCommand(connection *models.MessageHandler, user *models.User, m
 	}
 	defer file.Close()
 
+	connection.Write(models.NewMessageForClient(0, []byte("go on")).Data)
+
 	if err = connection.ReadFile(file); err != nil {
 		connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return
@@ -202,7 +204,7 @@ func HandleRenameFileOrDirectoryCommand(connection *models.MessageHandler, user 
 		return
 	}
 
-	connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
 }
 
 func HandleLoginCommand(connection *models.MessageHandler, user *models.User, message *models.MessageForServer) {
