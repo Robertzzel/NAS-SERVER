@@ -10,7 +10,7 @@ import (
 
 func main() {
 	if len(os.Args) != 4 {
-		println("must give Username, Password and MemoryAllocated (MB)")
+		println("must give Username, Password and MemoryAllocated (GB)")
 		os.Exit(1)
 	}
 
@@ -26,7 +26,7 @@ func main() {
 	defer db.Close()
 
 	memoryBits, err := strconv.Atoi(os.Args[3])
-	memoryMegaBytes := memoryBits * 1024 * 1024
+	memoryMegaBytes := memoryBits * 1024 * 1024 * 1024
 
 	if err := db.AddUser(os.Args[1], os.Args[2], memoryMegaBytes); err != nil {
 		println("cannot add user ", err.Error())
@@ -39,7 +39,5 @@ func main() {
 	}
 
 	fullPath := path.Join(configs.GetBaseFilesPath(), os.Args[1])
-	if err = os.Mkdir(fullPath, os.ModePerm); err != nil {
-		panic(err)
-	}
+	os.Mkdir(fullPath, os.ModePerm)
 }

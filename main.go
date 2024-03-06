@@ -41,6 +41,8 @@ func handleConnection(c net.Conn) {
 			commands.HandleLoginCommand(connection, &user, &message)
 		case commands.ListFilesAndDirectories:
 			commands.HandleListFilesAndDirectoriesCommand(connection, &user, &message)
+		case commands.Info:
+			commands.HandleInfoCommand(connection, &user, &message)
 		default:
 			continue
 		}
