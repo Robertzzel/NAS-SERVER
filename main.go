@@ -4,8 +4,15 @@ import (
 	"NAS-Server-Web/commands"
 	"NAS-Server-Web/models"
 	"NAS-Server-Web/services"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"log"
+	"math/big"
 	"net"
+	"time"
 )
 
 func handleConnection(c net.Conn) {
@@ -41,35 +48,91 @@ func handleConnection(c net.Conn) {
 			commands.HandleLoginCommand(connection, &user, &message)
 		case commands.ListFilesAndDirectories:
 			commands.HandleListFilesAndDirectoriesCommand(connection, &user, &message)
+		case commands.Info:
+			commands.HandleInfoCommand(connection, &user, &message)
 		default:
 			continue
 		}
 	}
 }
 
+func GenX509KeyPair() (tls.Certificate, error) {
+	now := time.Now()
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(now.Unix()),
+		NotBefore:             now,
+		NotAfter:              now.AddDate(0, 0, 1), // Valid for one day
+		SubjectKeyId:          []byte{113, 117, 105, 99, 107, 115, 101, 114, 118, 101},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage: x509.KeyUsageKeyEncipherment |
+			x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+	}
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	cert, err := x509.CreateCertificate(rand.Reader, template, template,
+		priv.Public(), priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	var outCert tls.Certificate
+	outCert.Certificate = append(outCert.Certificate, cert)
+	outCert.PrivateKey = priv
+
+	return outCert, nil
+}
+
 func main() {
-	println("Starting server...")
+	log.Print("Starting server...")
 	service, err := services.NewConfigsService()
 	if err != nil {
 		panic(err)
 	}
 
-	address := service.GetHost() + ":" + service.GetPort()
-
-	l, err := net.Listen("tcp4", address)
+	log.Print("Generating keys...")
+	cert, err := GenX509KeyPair()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalf("server: loadkeys: %s", err)
 	}
-	defer l.Close()
+	config := tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS13,
+		Rand:         rand.Reader,
+	}
 
-	println("Server started on " + address)
+	log.Print("Creating a TLS Server...")
+	address := service.Host + ":" + service.Port
+	listener, err := tls.Listen("tcp", address, &config)
+	if err != nil {
+		log.Fatalf("server: listen: %s", err)
+	}
+
+	log.Print("Server listening...")
 	for {
-		c, err := l.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println(err)
-			return
+			log.Printf("server: accept: %s", err)
+			break
 		}
-		go handleConnection(c)
+		defer conn.Close()
+
+		log.Printf("Accepted connection from %s", conn.RemoteAddr())
+		tlscon, ok := conn.(*tls.Conn)
+		if !ok {
+			log.Printf("Connection does not have a valid TLS handshake from %s", conn.RemoteAddr())
+			continue
+		}
+
+		state := tlscon.ConnectionState()
+		for _, v := range state.PeerCertificates {
+			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
+		}
+		go handleConnection(conn)
 	}
 }

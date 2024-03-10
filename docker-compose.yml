@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  your-service:
+    image: server-nas
+    ports:
+      - "25555:25555"
+    restart: always
+    environment:
+      - HOST=
+      - PORT=8080
+      - DATABASE_PATH=./database.db
+      - STORAGE=your_api_key
+    volumes:
+      - /dev/sda:/dev/sdX

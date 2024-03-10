@@ -130,7 +130,7 @@ func GetUserUsedMemory(username string) (int64, error) {
 		return 0, err
 	}
 
-	entries, err := os.ReadDir(configs.GetBaseFilesPath())
+	entries, err := os.ReadDir(configs.BaseFilesBath)
 	if err != nil {
 		return 0, err
 	}
@@ -143,7 +143,7 @@ func GetUserUsedMemory(username string) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		dirSize, err := DirSize(configs.GetBaseFilesPath() + "/" + info.Name())
+		dirSize, err := DirSize(configs.BaseFilesBath + "/" + info.Name())
 		if err != nil {
 			return 0, err
 		}

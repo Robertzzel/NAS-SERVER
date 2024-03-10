@@ -19,7 +19,7 @@ func NewMessage(command []byte) (MessageForServer, error) {
 	}
 
 	if len(command) > 1 {
-		message.Args = strings.Split(string(command[1:]), ";")
+		message.Args = strings.Split(string(command[1:]), "\n")
 	}
 
 	return message, nil
