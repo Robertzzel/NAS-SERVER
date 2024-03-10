@@ -89,12 +89,13 @@ func GenX509KeyPair() (tls.Certificate, error) {
 }
 
 func main() {
-	println("Starting server...")
+	log.Print("Starting server...")
 	service, err := services.NewConfigsService()
 	if err != nil {
 		panic(err)
 	}
 
+	log.Print("Generating keys...")
 	cert, err := GenX509KeyPair()
 	if err != nil {
 		log.Fatalf("server: loadkeys: %s", err)
@@ -105,13 +106,14 @@ func main() {
 		Rand:         rand.Reader,
 	}
 
-	address := service.GetHost() + ":" + service.GetPort()
+	log.Print("Creating a TLS Server...")
+	address := service.Host + ":" + service.Port
 	listener, err := tls.Listen("tcp", address, &config)
 	if err != nil {
 		log.Fatalf("server: listen: %s", err)
 	}
 
-	log.Print("server: listening")
+	log.Print("Server listening...")
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -120,14 +122,16 @@ func main() {
 		}
 		defer conn.Close()
 
-		log.Printf("server: accepted from %s", conn.RemoteAddr())
+		log.Printf("Accepted connection from %s", conn.RemoteAddr())
 		tlscon, ok := conn.(*tls.Conn)
-		if ok {
-			log.Print("ok=true")
-			state := tlscon.ConnectionState()
-			for _, v := range state.PeerCertificates {
-				log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
-			}
+		if !ok {
+			log.Printf("Connection does not have a valid TLS handshake from %s", conn.RemoteAddr())
+			continue
+		}
+
+		state := tlscon.ConnectionState()
+		for _, v := range state.PeerCertificates {
+			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
 		}
 		go handleConnection(conn)
 	}

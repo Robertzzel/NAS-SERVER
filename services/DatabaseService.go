@@ -21,7 +21,7 @@ func NewDatabaseService() (*DatabaseService, error) {
 			return nil, err
 		}
 
-		db, err := sql.Open("sqlite3", configs.GetDatabasePath())
+		db, err := sql.Open("sqlite3", configs.DatabasePath)
 		if err != nil {
 			return nil, err
 		}

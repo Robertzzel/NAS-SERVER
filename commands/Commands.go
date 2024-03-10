@@ -238,7 +238,7 @@ func HandleLoginCommand(connection *models.MessageHandler, user *models.User, me
 	if exists {
 		user.IsAuthenticated = true
 		user.Name = username
-		user.UserRootDirectory = filepath.Join(config.GetBaseFilesPath(), username)
+		user.UserRootDirectory = filepath.Join(config.BaseFilesBath, username)
 	} else {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid username or password")).Data)
 		return
