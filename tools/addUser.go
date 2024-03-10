@@ -33,11 +33,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = os.Mkdir(configs.GetBaseFilesPath(), os.ModePerm)
+	err = os.Mkdir(configs.BaseFilesBath, os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
 
-	fullPath := path.Join(configs.GetBaseFilesPath(), os.Args[1])
+	fullPath := path.Join(configs.BaseFilesBath, os.Args[1])
 	os.Mkdir(fullPath, os.ModePerm)
 }
