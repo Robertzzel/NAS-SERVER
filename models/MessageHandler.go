@@ -25,8 +25,7 @@ func (mh *MessageHandler) Write(message []byte) error {
 		return err
 	}
 
-	written, err := mh.conn.Write(message)
-	print("Loggin successfull, bytes written:", written)
+	_, err = mh.conn.Write(message)
 	return err
 }
 

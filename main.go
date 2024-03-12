@@ -24,32 +24,51 @@ func handleConnection(c net.Conn) {
 	for {
 		rawMessage, err := connection.Read()
 		if err != nil {
+			log.Print("Closed connection with ", c.RemoteAddr())
 			return
 		}
 
 		message, err := models.NewMessage(rawMessage)
 		if err != nil {
+			log.Print("Bad message structure from ", c.RemoteAddr())
 			continue
 		}
 
 		switch message.Command {
 		case commands.UploadFile:
+			log.Print("Started UploadFile with params:", message.Args, " ...")
 			commands.HandleUploadCommand(connection, &user, &message)
+			log.Print("Ended UploadFile with params:", message.Args, " ...")
 		case commands.DownloadFileOrDirectory:
+			log.Print("Started DownloadFileOrDirectory with params:", message.Args, " ...")
 			commands.HandleDownloadFileOrDirectory(connection, &user, &message)
+			log.Print("Closing connection...")
 			c.Close()
+			log.Print("Ended DownloadFileOrDirectory with params:", message.Args, " ...")
 		case commands.CreateDirectory:
+			log.Print("Started CreateDirectory with params:", message.Args, " ...")
 			commands.HandleCreateDirectoryCommand(connection, &user, &message)
+			log.Print("Ended CreateDirectory with params:", message.Args, " ...")
 		case commands.RemoveFileOrDirectory:
+			log.Print("Started RemoveFileOrDirectory with params:", message.Args, " ...")
 			commands.HandleRemoveFileOrDirectoryCommand(connection, &user, &message)
+			log.Print("Ended RemoveFileOrDirectory with params:", message.Args, " ...")
 		case commands.RenameFileOrDirectory:
+			log.Print("Started RenameFileOrDirectory with params:", message.Args, " ...")
 			commands.HandleRenameFileOrDirectoryCommand(connection, &user, &message)
+			log.Print("Ended RenameFileOrDirectory with params:", message.Args, " ...")
 		case commands.Login:
+			log.Print("Started Login with params:", message.Args, " ...")
 			commands.HandleLoginCommand(connection, &user, &message)
+			log.Print("Ended Login with params:", message.Args, " ...")
 		case commands.ListFilesAndDirectories:
+			log.Print("Started ListFilesAndDirectories with params:", message.Args, " ...")
 			commands.HandleListFilesAndDirectoriesCommand(connection, &user, &message)
+			log.Print("Ended ListFilesAndDirectories with params:", message.Args, " ...")
 		case commands.Info:
+			log.Print("Started Info with params:", message.Args, " ...")
 			commands.HandleInfoCommand(connection, &user, &message)
+			log.Print("Ended Info with params:", message.Args, " ...")
 		default:
 			continue
 		}
