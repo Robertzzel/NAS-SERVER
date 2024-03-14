@@ -125,8 +125,8 @@ func main() {
 		Rand:         rand.Reader,
 	}
 
-	log.Print("Creating a TLS Server...")
 	address := service.Host + ":" + service.Port
+	log.Print("Creating a TLS Server on ", address, "...")
 	listener, err := tls.Listen("tcp", address, &config)
 	if err != nil {
 		log.Fatalf("server: listen: %s", err)
