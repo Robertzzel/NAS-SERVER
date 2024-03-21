@@ -39,5 +39,5 @@ func main() {
 	}
 
 	fullPath := path.Join(configs.BaseFilesBath, os.Args[1])
-	os.Mkdir(fullPath, os.ModePerm)
+	_ = os.Mkdir(fullPath, os.ModePerm)
 }

@@ -37,13 +37,13 @@ func handleConnection(c net.Conn) {
 		switch message.Command {
 		case commands.UploadFile:
 			log.Print("Started UploadFile with params:", message.Args, " ...")
-			commands.HandleUploadCommand(connection, &user, &message)
+			commands.HandleUploadCommand(connection, &message)
 			log.Print("Ended UploadFile with params:", message.Args, " ...")
 		case commands.DownloadFileOrDirectory:
 			log.Print("Started DownloadFileOrDirectory with params:", message.Args, " ...")
 			commands.HandleDownloadFileOrDirectory(connection, &user, &message)
 			log.Print("Closing connection...")
-			c.Close()
+			_ = c.Close()
 			log.Print("Ended DownloadFileOrDirectory with params:", message.Args, " ...")
 		case commands.CreateDirectory:
 			log.Print("Started CreateDirectory with params:", message.Args, " ...")

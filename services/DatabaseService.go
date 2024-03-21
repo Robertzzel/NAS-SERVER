@@ -56,7 +56,7 @@ func (db *DatabaseService) GetUserAllocatedMemory(username string) (int, error) 
 }
 
 func (db *DatabaseService) Close() {
-	db.DB.Close()
+	_ = db.DB.Close()
 }
 
 func (db *DatabaseService) AddUser(username, password string, memory int) error {

@@ -22,7 +22,7 @@ const (
 	Info                    = 7
 )
 
-func HandleUploadCommand(connection *models.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleUploadCommand(connection *models.MessageHandler, message *models.MessageForServer) {
 	if len(message.Args) != 4 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return

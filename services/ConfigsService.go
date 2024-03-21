@@ -5,10 +5,6 @@ import (
 	"os"
 )
 
-const (
-	configFile = "./configs.json"
-)
-
 var (
 	serviceInstance *ConfigsService = nil
 )

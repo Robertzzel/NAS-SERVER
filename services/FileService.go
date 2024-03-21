@@ -5,52 +5,12 @@ import (
 	_ "encoding/json"
 	"errors"
 	_ "image/png"
-	"io"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-func UploadFile(username, filename string, reader io.Reader, size int64) error {
-	remainingMemory, err := GetUserRemainingMemory(username)
-	if err != nil {
-		return errors.New("internal error")
-	}
-
-	if remainingMemory < size {
-		return errors.New("no memory for the upload")
-	}
-
-	if !IsPathSafe(filename) {
-		return errors.New("bad path")
-	}
-
-	create, err := os.Create(filename)
-	if err != nil {
-		return errors.New("internal error")
-	}
-
-	_, err = io.Copy(create, reader)
-	if err != nil {
-		return errors.New("internal error")
-	}
-
-	return nil
-}
-
-func RenameFile(oldPath, newPath string) error {
-	if !IsPathSafe(oldPath) || !IsPathSafe(newPath) {
-		return errors.New("bad parameters")
-	}
-
-	if err := os.Rename(oldPath, newPath); err != nil {
-		return errors.New("internal error")
-	}
-
-	return nil
-}
 
 func DirSize(path string) (int64, error) {
 	var dirSize int64 = 0
