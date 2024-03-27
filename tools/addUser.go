@@ -1,7 +1,8 @@
 package main
 
 import (
-	"NAS-Server-Web/services"
+	"NAS-Server-Web/DatabaseService"
+	"NAS-Server-Web/shared/configurations"
 	"errors"
 	"os"
 	"path"
@@ -14,12 +15,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	configs, err := services.NewConfigsService()
+	err := configurations.UpdateConfigurations()
 	if err != nil {
 		panic(err)
 	}
 
-	db, err := services.NewDatabaseService()
+	db, err := DatabaseService.NewDatabaseService()
 	if err != nil {
 		panic(err)
 	}
@@ -33,11 +34,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = os.Mkdir(configs.BaseFilesBath, os.ModePerm)
+	err = os.Mkdir(configurations.GetBaseFilesPath(), os.ModePerm)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
 
-	fullPath := path.Join(configs.BaseFilesBath, os.Args[1])
+	fullPath := path.Join(configurations.GetBaseFilesPath(), os.Args[1])
 	_ = os.Mkdir(fullPath, os.ModePerm)
 }

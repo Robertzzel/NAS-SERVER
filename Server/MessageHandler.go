@@ -1,4 +1,4 @@
-package models
+package Server
 
 import (
 	"archive/zip"
