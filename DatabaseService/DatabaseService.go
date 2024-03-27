@@ -15,22 +15,22 @@ type DatabaseService struct {
 
 var instance *DatabaseService = nil
 
-func NewDatabaseService() (*DatabaseService, error) {
+func NewDatabaseService() (DatabaseService, error) {
 	if instance == nil {
 		db, err := sql.Open("sqlite3", configurations.GetDatabasePath())
 		if err != nil {
-			return nil, err
+			return DatabaseService{}, err
 		}
 
 		dm := DatabaseService{db}
 		if err = dm.migrateDatabase(); err != nil {
-			return nil, err
+			return DatabaseService{}, err
 		}
 
 		instance = &dm
 	}
 
-	return instance, nil
+	return DatabaseService{}, nil
 }
 
 func (db *DatabaseService) UsernameAndPasswordExists(username, password string) (bool, error) {

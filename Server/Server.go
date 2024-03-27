@@ -1,6 +1,7 @@
 package Server
 
 import (
+	"NAS-Server-Web/UserService"
 	"NAS-Server-Web/shared/configurations"
 	models2 "NAS-Server-Web/shared/models"
 	"crypto/rand"
@@ -20,6 +21,15 @@ func StartServer() {
 	if err != nil {
 		panic(err)
 	}
+
+	log.Print("Starting user service...")
+	userService, err := UserService.NewUserService()
+	if err != nil {
+		panic(err)
+	}
+
+	log.Print("Starting file service...")
+	//
 
 	log.Print("Generating keys...")
 	cert, err := genX509KeyPair()
@@ -60,11 +70,11 @@ func StartServer() {
 			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, &userService)
 	}
 }
 
-func handleConnection(c net.Conn) {
+func handleConnection(c net.Conn, userService *UserService.UserService /*, fileService*/) {
 	defer c.Close()
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 
@@ -86,11 +96,11 @@ func handleConnection(c net.Conn) {
 		switch message.Command {
 		case UploadFile:
 			log.Print("Started UploadFile with params:", message.Args, " ...")
-			HandleUploadCommand(connection, &message)
+			HandleUploadCommand(userService /*,fileService*/, connection, &message)
 			log.Print("Ended UploadFile with params:", message.Args, " ...")
 		case DownloadFileOrDirectory:
 			log.Print("Started DownloadFileOrDirectory with params:", message.Args, " ...")
-			HandleDownloadFileOrDirectory(connection, &user, &message)
+			HandleDownloadFileOrDirectory(userService, connection, &user, &message)
 			log.Print("Closing connection...")
 			_ = c.Close()
 			log.Print("Ended DownloadFileOrDirectory with params:", message.Args, " ...")
@@ -108,7 +118,7 @@ func handleConnection(c net.Conn) {
 			log.Print("Ended RenameFileOrDirectory with params:", message.Args, " ...")
 		case Login:
 			log.Print("Started Login with params:", message.Args, " ...")
-			HandleLoginCommand(connection, &user, &message)
+			HandleLoginCommand(userService, connection, &user, &message)
 			log.Print("Ended Login with params:", message.Args, " ...")
 		case ListFilesAndDirectories:
 			log.Print("Started ListFilesAndDirectories with params:", message.Args, " ...")
@@ -116,7 +126,7 @@ func handleConnection(c net.Conn) {
 			log.Print("Ended ListFilesAndDirectories with params:", message.Args, " ...")
 		case Info:
 			log.Print("Started Info with params:", message.Args, " ...")
-			HandleInfoCommand(connection, &user, &message)
+			HandleInfoCommand(userService, connection, &user, &message)
 			log.Print("Ended Info with params:", message.Args, " ...")
 		default:
 			continue
