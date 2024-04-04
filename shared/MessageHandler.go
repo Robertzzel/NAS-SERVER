@@ -1,12 +1,18 @@
-package Server
+package shared
 
 import (
 	"archive/zip"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type MessageHandler struct {
@@ -88,4 +94,36 @@ func (mh *MessageHandler) SendDirectoryAsZip(inputDirectory, userRootDirectoryPa
 		return nil
 	}
 	return filepath.Walk(inputDirectory, walker)
+}
+
+func GenX509KeyPair() (tls.Certificate, error) {
+	now := time.Now()
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(now.Unix()),
+		NotBefore:             now,
+		NotAfter:              now.AddDate(1, 0, 0),
+		SubjectKeyId:          []byte{113, 117, 105, 99, 107, 115, 101, 114, 118, 101},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage: x509.KeyUsageKeyEncipherment |
+			x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+	}
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	cert, err := x509.CreateCertificate(rand.Reader, template, template,
+		priv.Public(), priv)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	var outCert tls.Certificate
+	outCert.Certificate = append(outCert.Certificate, cert)
+	outCert.PrivateKey = priv
+
+	return outCert, nil
 }

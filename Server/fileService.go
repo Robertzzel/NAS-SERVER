@@ -1,4 +1,4 @@
-package main
+package Server
 
 import (
 	"NAS-Server-Web/shared/configurations"

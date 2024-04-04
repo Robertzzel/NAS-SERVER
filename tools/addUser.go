@@ -1,7 +1,7 @@
 package main
 
 import (
-	"NAS-Server-Web/DatabaseService"
+	. "NAS-Server-Web/shared/Services"
 	"NAS-Server-Web/shared/configurations"
 	"errors"
 	"os"
@@ -20,16 +20,15 @@ func main() {
 		panic(err)
 	}
 
-	db, err := DatabaseService.NewDatabaseService()
+	db, err := NewDatabaseService()
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
 
 	memoryBits, err := strconv.Atoi(os.Args[3])
 	memoryMegaBytes := memoryBits * 1024 * 1024 * 1024
 
-	if err := db.AddUser(os.Args[1], os.Args[2], memoryMegaBytes); err != nil {
+	if added := db.AddUser(os.Args[1], os.Args[2], memoryMegaBytes); !added {
 		println("cannot add user ", err.Error())
 		os.Exit(1)
 	}

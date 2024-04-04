@@ -1,8 +1,8 @@
 package Server
 
 import (
-	"NAS-Server-Web/FileService"
-	"NAS-Server-Web/UserService"
+	"NAS-Server-Web/shared"
+	"NAS-Server-Web/shared/Services"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
 	"os"
@@ -23,7 +23,7 @@ const (
 	Info                    = 7
 )
 
-func HandleUploadCommand(userService *UserService.UserService, connection *MessageHandler, message *models.MessageForServer) {
+func HandleUploadCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, message *models.MessageForServer) {
 	if len(message.Args) != 4 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return
@@ -49,7 +49,7 @@ func HandleUploadCommand(userService *UserService.UserService, connection *Messa
 		return
 	}
 
-	usedMemory, err := FileService.GetUserUsedMemory(username)
+	usedMemory, err := GetUserUsedMemory(username)
 	if err != nil {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return
@@ -96,7 +96,7 @@ func HandleUploadCommand(userService *UserService.UserService, connection *Messa
 	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
 }
 
-func HandleDownloadFileOrDirectory(userService *UserService.UserService, connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if len(message.Args) != 3 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return
@@ -154,7 +154,7 @@ func HandleDownloadFileOrDirectory(userService *UserService.UserService, connect
 	}
 }
 
-func HandleCreateDirectoryCommand(connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if !user.IsAuthenticated {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
 		return
@@ -180,7 +180,7 @@ func HandleCreateDirectoryCommand(connection *MessageHandler, user *models.User,
 	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
 }
 
-func HandleRemoveFileOrDirectoryCommand(connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if !user.IsAuthenticated {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
 		return
@@ -211,7 +211,7 @@ func HandleRemoveFileOrDirectoryCommand(connection *MessageHandler, user *models
 	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
 }
 
-func HandleRenameFileOrDirectoryCommand(connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if !user.IsAuthenticated {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
 		return
@@ -240,7 +240,7 @@ func HandleRenameFileOrDirectoryCommand(connection *MessageHandler, user *models
 	_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
 }
 
-func HandleLoginCommand(userService *UserService.UserService, connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleLoginCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if len(message.Args) != 2 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return
@@ -266,7 +266,7 @@ func HandleLoginCommand(userService *UserService.UserService, connection *Messag
 	_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
 }
 
-func HandleListFilesAndDirectoriesCommand(connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if !user.IsAuthenticated {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
 		return
@@ -284,7 +284,7 @@ func HandleListFilesAndDirectoriesCommand(connection *MessageHandler, user *mode
 	}
 
 	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
-	directory, err := FileService.GetFilesFromDirectory(directoryPath)
+	directory, err := GetFilesFromDirectory(directoryPath)
 	if err != nil {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return
@@ -304,7 +304,7 @@ func HandleListFilesAndDirectoriesCommand(connection *MessageHandler, user *mode
 	}
 }
 
-func HandleInfoCommand(userService *UserService.UserService, connection *MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleInfoCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
 	if !user.IsAuthenticated {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
 		return
@@ -315,7 +315,7 @@ func HandleInfoCommand(userService *UserService.UserService, connection *Message
 		return
 	}
 
-	usedMemory, err := FileService.GetUserUsedMemory(user.Name)
+	usedMemory, err := GetUserUsedMemory(user.Name)
 	if err != nil {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return

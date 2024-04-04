@@ -1,18 +1,16 @@
 package Server
 
 import (
-	"NAS-Server-Web/UserService"
+	"NAS-Server-Web/shared"
+	"NAS-Server-Web/shared/Services"
 	"NAS-Server-Web/shared/configurations"
 	models2 "NAS-Server-Web/shared/models"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"log"
-	"math/big"
 	"net"
-	"time"
 )
 
 func StartServer() {
@@ -23,7 +21,7 @@ func StartServer() {
 	}
 
 	log.Print("Starting user service...")
-	userService, err := UserService.NewUserService()
+	databaseService, err := Services.NewDatabaseService()
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +30,7 @@ func StartServer() {
 	//
 
 	log.Print("Generating keys...")
-	cert, err := genX509KeyPair()
+	cert, err := shared.GenX509KeyPair()
 	if err != nil {
 		log.Fatalf("server: loadkeys: %s", err)
 	}
@@ -56,7 +54,6 @@ func StartServer() {
 			log.Printf("server: accept: %s", err)
 			break
 		}
-		defer conn.Close()
 
 		log.Printf("Accepted connection from %s", conn.RemoteAddr())
 		tlscon, ok := conn.(*tls.Conn)
@@ -70,16 +67,16 @@ func StartServer() {
 			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
 		}
 
-		go handleConnection(conn, &userService)
+		go handleConnection(conn, databaseService)
 	}
 }
 
-func handleConnection(c net.Conn, userService *UserService.UserService /*, fileService*/) {
+func handleConnection(c net.Conn, userService *Services.DatabaseService /*, fileService*/) {
 	defer c.Close()
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 
 	user := models2.NewUser()
-	connection := NewMessageHandler(c)
+	connection := shared.NewMessageHandler(c)
 	for {
 		rawMessage, err := connection.Read()
 		if err != nil {
@@ -132,36 +129,4 @@ func handleConnection(c net.Conn, userService *UserService.UserService /*, fileS
 			continue
 		}
 	}
-}
-
-func genX509KeyPair() (tls.Certificate, error) {
-	now := time.Now()
-	template := &x509.Certificate{
-		SerialNumber:          big.NewInt(now.Unix()),
-		NotBefore:             now,
-		NotAfter:              now.AddDate(1, 0, 0),
-		SubjectKeyId:          []byte{113, 117, 105, 99, 107, 115, 101, 114, 118, 101},
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		KeyUsage: x509.KeyUsageKeyEncipherment |
-			x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-	}
-
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	cert, err := x509.CreateCertificate(rand.Reader, template, template,
-		priv.Public(), priv)
-	if err != nil {
-		return tls.Certificate{}, err
-	}
-
-	var outCert tls.Certificate
-	outCert.Certificate = append(outCert.Certificate, cert)
-	outCert.PrivateKey = priv
-
-	return outCert, nil
 }
