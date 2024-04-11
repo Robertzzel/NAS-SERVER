@@ -1,4 +1,4 @@
-package Server
+package main
 
 import (
 	"NAS-Server-Web/shared"
@@ -13,7 +13,7 @@ import (
 	"net"
 )
 
-func StartServer() {
+func main() {
 	log.Print("Starting server...")
 	err := configurations.UpdateConfigurations()
 	if err != nil {
@@ -27,7 +27,6 @@ func StartServer() {
 	}
 
 	log.Print("Starting file service...")
-	//
 
 	log.Print("Generating keys...")
 	cert, err := shared.GenX509KeyPair()
@@ -40,7 +39,7 @@ func StartServer() {
 		Rand:         rand.Reader,
 	}
 
-	address := configurations.GetHost() + ":" + configurations.GetPort()
+	address := configurations.GetServerHost() + ":" + configurations.GetServerPort()
 	log.Print("Creating a TLS Server on ", address, "...")
 	listener, err := tls.Listen("tcp", address, &config)
 	if err != nil {

@@ -35,10 +35,12 @@ func NewRequestMessageFromBytes(command []byte) (RequestMessage, error) {
 
 func (rm *RequestMessage) GetBytesData() []byte {
 	msg := []byte{rm.Command}
+	params := ""
 	for _, arg := range rm.Args {
-		msg = append(msg, []byte(arg)...)
+		params += arg + "\n"
 	}
-	return msg
+	params = params[:len(params)-1]
+	return append(msg, []byte(params)...)
 }
 
 type ResponseMessage struct {

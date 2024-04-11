@@ -22,12 +22,13 @@ func NewDatabaseService() (*DatabaseService, error) {
 	}
 
 	config := tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
-		Rand:         rand.Reader,
+		Certificates:       []tls.Certificate{cert},
+		MinVersion:         tls.VersionTLS13,
+		Rand:               rand.Reader,
+		InsecureSkipVerify: true,
 	}
 
-	address := configurations.GetHost() + ":" + configurations.GetPort() // schimba cu detaliile bune
+	address := configurations.GetDatabaseHost() + ":" + configurations.GetDatabasePort() // schimba cu detaliile bune
 	conn, err := tls.Dial("tcp", address, &config)
 	if err != nil {
 		return nil, err

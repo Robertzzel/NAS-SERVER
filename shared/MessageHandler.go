@@ -96,6 +96,21 @@ func (mh *MessageHandler) SendDirectoryAsZip(inputDirectory, userRootDirectoryPa
 	return filepath.Walk(inputDirectory, walker)
 }
 
+func GetTLSConfigs() (*tls.Config, error) {
+	cert, err := GenX509KeyPair()
+	if err != nil {
+		return nil, err
+	}
+
+	config := tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS13,
+		Rand:         rand.Reader,
+	}
+
+	return &config, nil
+}
+
 func GenX509KeyPair() (tls.Certificate, error) {
 	now := time.Now()
 	template := &x509.Certificate{

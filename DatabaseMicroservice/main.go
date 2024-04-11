@@ -18,7 +18,10 @@ import (
 )
 
 func main() {
-	log.Printf("Starting...")
+	if err := configurations.UpdateConfigurations(); err != nil {
+		return
+	}
+
 	db, err := sql.Open("sqlite3", configurations.GetDatabasePath())
 	if err != nil {
 		panic(err)
@@ -39,8 +42,8 @@ func main() {
 		MinVersion:   tls.VersionTLS13,
 		Rand:         rand.Reader,
 	}
-
-	address := configurations.GetHost() + ":" + configurations.GetPort()
+	address := configurations.GetDatabaseHost() + ":" + configurations.GetDatabasePort()
+	log.Printf("Starting at " + address + " ...")
 	listener, err := tls.Listen("tcp", address, &config)
 	if err != nil {
 		panic(err)
@@ -110,7 +113,9 @@ func handleConnection(c net.Conn, db *sql.DB) {
 			responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
 			_ = connection.Write(responseMessage.GetBytesData())
 		case 2: // add user
+			log.Printf("Checking params...")
 			if len(message.Args) != 3 {
+				log.Printf("Wrong number of params " + fmt.Sprint(len(message.Args)) + "...")
 				continue
 			}
 
@@ -119,6 +124,7 @@ func handleConnection(c net.Conn, db *sql.DB) {
 				continue
 			}
 
+			log.Printf("Adding user...")
 			if err = AddUser(db, message.Args[0], message.Args[1], memory); err != nil {
 				continue
 			}

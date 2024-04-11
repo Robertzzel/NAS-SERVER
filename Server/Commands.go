@@ -1,10 +1,11 @@
-package Server
+package main
 
 import (
 	"NAS-Server-Web/shared"
 	"NAS-Server-Web/shared/Services"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -49,7 +50,7 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 		return
 	}
 
-	usedMemory, err := GetUserUsedMemory(username)
+	usedMemory, err := Services.GetUserUsedMemory(username)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
@@ -256,6 +257,7 @@ func HandleLoginCommand(userService *Services.DatabaseService, connection *share
 
 	exists, err := userService.CheckUsernameAndPassword(username, password)
 	if err != nil {
+		log.Println("Username")
 		_ = SendResponseMessage(connection, 1, err.Error())
 		return
 	}
@@ -289,23 +291,12 @@ func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, use
 	}
 
 	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
-	// TODO REPLACE
-	directory, err := GetFilesFromDirectory(directoryPath)
+	directory, err := Services.GetFilesFromDirectory(directoryPath)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-	//
-
-	resultMessage := ""
-	for file := range directory {
-		resultMessage += directory[file].Name + "\n" + strconv.FormatInt(directory[file].Size, 10) + "\n" + strconv.FormatBool(directory[file].IsDir) + "\n" + directory[file].Type + "\n" + strconv.FormatInt(directory[file].Created, 10) + "\x1c"
-	}
-	if len(resultMessage) > 0 {
-		resultMessage = resultMessage[:len(resultMessage)-1]
-	}
-
-	if err := SendResponseMessage(connection, 0, resultMessage); err != nil {
+	if err := SendResponseMessage(connection, 0, directory); err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
@@ -323,7 +314,7 @@ func HandleInfoCommand(userService *Services.DatabaseService, connection *shared
 	}
 
 	//TODO REPLCE
-	usedMemory, err := GetUserUsedMemory(user.Name)
+	usedMemory, err := Services.GetUserUsedMemory(user.Name)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
