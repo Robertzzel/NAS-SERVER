@@ -23,9 +23,9 @@ const (
 	Info                    = 7
 )
 
-func HandleUploadCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, message *models.MessageForServer) {
+func HandleUploadCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, message *models.RequestMessage) {
 	if len(message.Args) != 4 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
@@ -34,46 +34,41 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 
 	exists, err := userService.CheckUsernameAndPassword(username, password)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte(err.Error())).Data)
+		_ = SendResponseMessage(connection, 1, err.Error())
 		return
 	}
 	if !exists {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	filename := message.Args[2]
 	size, err := strconv.Atoi(message.Args[3])
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid size")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid size")
 		return
 	}
 
 	usedMemory, err := GetUserUsedMemory(username)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
 	allocatedMemory, err := userService.GetUserAllocatedMemory(username)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
 	remainingMemory := int64(allocatedMemory) - usedMemory
-	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
-		return
-	}
-
 	if remainingMemory < int64(size) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("no memory for the upload")).Data)
+		_ = SendResponseMessage(connection, 1, "no memory for the upload")
 		return
 	}
 
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
@@ -81,24 +76,24 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 	filename = path.Join(userRootDirectory, filename)
 	file, err := os.Create(filename)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 	defer file.Close()
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("go on")).Data)
+	_ = SendResponseMessage(connection, 0, "go on")
 
 	if err = connection.ReadFile(file); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	_ = SendResponseMessage(connection, 0, "")
 }
 
-func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if len(message.Args) != 3 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
@@ -107,17 +102,17 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 
 	exists, err := userService.CheckUsernameAndPassword(username, password)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte(err.Error())).Data)
+		_ = SendResponseMessage(connection, 1, err.Error())
 		return
 	}
 	if !exists {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	filename := message.Args[2]
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
@@ -125,107 +120,107 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 	filename = path.Join(userRootDirectory, filename)
 	stat, err := os.Stat(filename)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
 	if stat.IsDir() {
-		_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
+		_ = SendResponseMessage(connection, 0, "success")
 
 		err := connection.SendDirectoryAsZip(filename, user.UserRootDirectory)
 		if err != nil {
-			_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+			_ = SendResponseMessage(connection, 1, "internal error")
 			return
 		}
 	} else {
 		file, err := os.Open(filename)
 		if err != nil {
-			_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+			_ = SendResponseMessage(connection, 1, "internal error")
 			return
 		}
 		defer file.Close()
 
-		_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+		_ = SendResponseMessage(connection, 0, "")
 
 		if err = connection.SendFile(file); err != nil {
-			_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+			_ = SendResponseMessage(connection, 1, "internal error")
 			return
 		}
 	}
 }
 
-func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 1 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	filename := message.Args[0]
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
 	if err := os.Mkdir(filename, os.ModePerm); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	_ = SendResponseMessage(connection, 0, "")
 }
 
-func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 1 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	filename := message.Args[0]
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
 	_, err := os.Stat(filename)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 	if err := os.RemoveAll(filename); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	_ = SendResponseMessage(connection, 0, "")
 }
 
-func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 2 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	filename := message.Args[0]
 	newFilename := message.Args[1]
 	if !IsPathSafe(filename) && !IsPathSafe(newFilename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
@@ -233,16 +228,16 @@ func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 	newFilename = path.Join(user.UserRootDirectory, newFilename)
 
 	if err := os.Rename(filename, newFilename); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
+	_ = SendResponseMessage(connection, 0, "success")
 }
 
-func HandleLoginCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleLoginCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if len(message.Args) != 2 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
@@ -251,7 +246,7 @@ func HandleLoginCommand(userService *Services.DatabaseService, connection *share
 
 	exists, err := userService.CheckUsernameAndPassword(username, password)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte(err.Error())).Data)
+		_ = SendResponseMessage(connection, 1, err.Error())
 		return
 	}
 	if exists {
@@ -259,34 +254,34 @@ func HandleLoginCommand(userService *Services.DatabaseService, connection *share
 		user.Name = username
 		user.UserRootDirectory = filepath.Join(configurations.GetBaseFilesPath(), username)
 	} else {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid username or password")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid username or password")
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
+	_ = SendResponseMessage(connection, 0, "success")
 }
 
-func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 1 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	directoryPath := message.Args[0]
 	if !IsPathSafe(directoryPath) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
 
 	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
 	directory, err := GetFilesFromDirectory(directoryPath)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
@@ -298,40 +293,45 @@ func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, use
 		resultMessage = resultMessage[:len(resultMessage)-1]
 	}
 
-	if err := connection.Write(models.NewMessageForClient(0, []byte(resultMessage)).Data); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+	if err := SendResponseMessage(connection, 0, resultMessage); err != nil {
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 }
 
-func HandleInfoCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.MessageForServer) {
+func HandleInfoCommand(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
+		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 0 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	usedMemory, err := GetUserUsedMemory(user.Name)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
 	allocatedMemory, err := userService.GetUserAllocatedMemory(user.Name)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
 
 	remainingMemory := int64(allocatedMemory) - usedMemory
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte(strconv.FormatInt(remainingMemory, 10))).Data)
+	_ = SendResponseMessage(connection, 0, strconv.FormatInt(remainingMemory, 10))
 }
 
 func IsPathSafe(path string) bool {
 	return !strings.Contains(path, "../")
+}
+
+func SendResponseMessage(mh *shared.MessageHandler, status byte, body string) error {
+	message := models.NewResponseMessage(status, []byte(body))
+	return mh.Write(message.GetBytesData())
 }
