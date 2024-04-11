@@ -74,6 +74,8 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
+
+	// TODO REPLACE
 	file, err := os.Create(filename)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
@@ -87,7 +89,7 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-
+	//
 	_ = SendResponseMessage(connection, 0, "")
 }
 
@@ -118,6 +120,7 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
+	// TODO REPLACE
 	stat, err := os.Stat(filename)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
@@ -147,6 +150,7 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 			return
 		}
 	}
+	//
 }
 
 func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
@@ -167,10 +171,12 @@ func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *model
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
+	// TODO REPLACE
 	if err := os.Mkdir(filename, os.ModePerm); err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	//
 
 	_ = SendResponseMessage(connection, 0, "")
 }
@@ -193,6 +199,7 @@ func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
+	// TODO REPLACE
 	_, err := os.Stat(filename)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
@@ -202,6 +209,7 @@ func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	//
 
 	_ = SendResponseMessage(connection, 0, "")
 }
@@ -227,10 +235,12 @@ func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 	filename = path.Join(user.UserRootDirectory, filename)
 	newFilename = path.Join(user.UserRootDirectory, newFilename)
 
+	// TODO REPLACE
 	if err := os.Rename(filename, newFilename); err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	//
 
 	_ = SendResponseMessage(connection, 0, "success")
 }
@@ -279,11 +289,13 @@ func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, use
 	}
 
 	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
+	// TODO REPLACE
 	directory, err := GetFilesFromDirectory(directoryPath)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	//
 
 	resultMessage := ""
 	for file := range directory {
@@ -310,11 +322,13 @@ func HandleInfoCommand(userService *Services.DatabaseService, connection *shared
 		return
 	}
 
+	//TODO REPLCE
 	usedMemory, err := GetUserUsedMemory(user.Name)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	//
 
 	allocatedMemory, err := userService.GetUserAllocatedMemory(user.Name)
 	if err != nil {

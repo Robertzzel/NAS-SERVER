@@ -84,7 +84,7 @@ func handleConnection(c net.Conn, userService *Services.DatabaseService /*, file
 			return
 		}
 
-		message, err := models2.NewMessage(rawMessage)
+		message, err := models2.NewRequestMessageFromBytes(rawMessage)
 		if err != nil {
 			log.Print("Bad message structure from ", c.RemoteAddr())
 			continue
