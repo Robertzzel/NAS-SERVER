@@ -172,12 +172,10 @@ func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *model
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
-	// TODO REPLACE
-	if err := os.Mkdir(filename, os.ModePerm); err != nil {
+	if err := Services.CreateDirectory(filename); err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-	//
 
 	_ = SendResponseMessage(connection, 0, "")
 }
@@ -200,17 +198,12 @@ func HandleRemoveFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 	}
 
 	filename = path.Join(user.UserRootDirectory, filename)
-	// TODO REPLACE
-	_, err := os.Stat(filename)
+
+	err := Services.DeleteFileOrDirectory(filename)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-	if err := os.RemoveAll(filename); err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
-		return
-	}
-	//
 
 	_ = SendResponseMessage(connection, 0, "")
 }
@@ -236,13 +229,10 @@ func HandleRenameFileOrDirectoryCommand(connection *shared.MessageHandler, user 
 	filename = path.Join(user.UserRootDirectory, filename)
 	newFilename = path.Join(user.UserRootDirectory, newFilename)
 
-	// TODO REPLACE
-	if err := os.Rename(filename, newFilename); err != nil {
+	if err := Services.RenameFileOrDirectory(filename, newFilename); err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-	//
-
 	_ = SendResponseMessage(connection, 0, "success")
 }
 
@@ -313,13 +303,11 @@ func HandleInfoCommand(userService *Services.DatabaseService, connection *shared
 		return
 	}
 
-	//TODO REPLCE
 	usedMemory, err := Services.GetUserUsedMemory(user.Name)
 	if err != nil {
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
-	//
 
 	allocatedMemory, err := userService.GetUserAllocatedMemory(user.Name)
 	if err != nil {

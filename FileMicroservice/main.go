@@ -23,6 +23,9 @@ const (
 	UPLOAD      = 1
 	LIST        = 2
 	USED_MEMORY = 3
+	CREATE      = 4
+	RENAME      = 5
+	DELETE      = 6
 )
 
 func main() {
@@ -64,7 +67,6 @@ func main() {
 
 		go handleConnection(tlscon)
 	}
-
 }
 
 func handleConnection(c net.Conn) {
@@ -203,6 +205,48 @@ func handleConnection(c net.Conn) {
 
 			responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
 			_ = connection.Write(responseMessage.GetBytesData())
+		case CREATE:
+			if len(message.Args) != 1 {
+				continue
+			}
+
+			fullPath := message.Args[0]
+
+			if err := CreateDirectory(fullPath); err != nil {
+				_ = SendResponseMessage(connection, 1, "")
+				return
+			}
+
+			_ = SendResponseMessage(connection, 0, "")
+		case RENAME:
+			if len(message.Args) != 2 {
+				_ = SendResponseMessage(connection, 1, "")
+				continue
+			}
+
+			fullPath := message.Args[0]
+			newFullPath := message.Args[1]
+
+			if err = RenameFileOrDirectory(fullPath, newFullPath); err != nil {
+				_ = SendResponseMessage(connection, 1, "")
+				continue
+			}
+
+			_ = SendResponseMessage(connection, 0, "")
+		case DELETE:
+			if len(message.Args) != 1 {
+				_ = SendResponseMessage(connection, 1, "")
+				continue
+			}
+
+			fullPath := message.Args[0]
+
+			if err = DeleteFileOrDirectory(fullPath); err != nil {
+				_ = SendResponseMessage(connection, 1, "")
+				continue
+			}
+
+			_ = SendResponseMessage(connection, 0, "")
 		default:
 			continue
 		}
@@ -309,4 +353,33 @@ func getFileType(filePath string) (string, error) {
 	}
 
 	return mimeType, nil
+}
+
+func SendResponseMessage(mh *shared.MessageHandler, status byte, body string) error {
+	message := models.NewResponseMessage(status, []byte(body))
+	return mh.Write(message.GetBytesData())
+}
+
+func CreateDirectory(path string) error {
+	err := os.Mkdir(path, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteFileOrDirectory(path string) error {
+	err := os.RemoveAll(path)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func RenameFileOrDirectory(fullPath, newFullPath string) error {
+	err := os.Rename(fullPath, newFullPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
