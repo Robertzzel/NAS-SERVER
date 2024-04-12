@@ -6,7 +6,6 @@ import (
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
 	"log"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -76,22 +75,12 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
 
-	// TODO REPLACE
-	file, err := os.Create(filename)
+	uploadPort, err := Services.Upload(filename)
 	if err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
+		err = SendResponseMessage(connection, 1, "")
 		return
 	}
-	defer file.Close()
-
-	_ = SendResponseMessage(connection, 0, "go on")
-
-	if err = connection.ReadFile(file); err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
-		return
-	}
-	//
-	_ = SendResponseMessage(connection, 0, "")
+	_ = SendResponseMessage(connection, 0, uploadPort)
 }
 
 func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
@@ -121,37 +110,13 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
-	// TODO REPLACE
-	stat, err := os.Stat(filename)
+
+	downloadPort, err := Services.Download(filename)
 	if err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
+		err = SendResponseMessage(connection, 1, "")
 		return
 	}
-
-	if stat.IsDir() {
-		_ = SendResponseMessage(connection, 0, "success")
-
-		err := connection.SendDirectoryAsZip(filename, user.UserRootDirectory)
-		if err != nil {
-			_ = SendResponseMessage(connection, 1, "internal error")
-			return
-		}
-	} else {
-		file, err := os.Open(filename)
-		if err != nil {
-			_ = SendResponseMessage(connection, 1, "internal error")
-			return
-		}
-		defer file.Close()
-
-		_ = SendResponseMessage(connection, 0, "")
-
-		if err = connection.SendFile(file); err != nil {
-			_ = SendResponseMessage(connection, 1, "internal error")
-			return
-		}
-	}
-	//
+	_ = SendResponseMessage(connection, 0, downloadPort)
 }
 
 func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {

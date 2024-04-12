@@ -87,52 +87,17 @@ func handleConnection(c net.Conn) {
 		}
 
 		switch message.Command {
-		case DOWNLOAD:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			filePath := message.Args[0]
-
-			port := 10000
-			for {
-				if IsPortOpen(port) {
-					break
-				}
-				port++
-			}
-
-			go func(filePath string, port int) {
-				cert, err := shared.GenX509KeyPair()
-				if err != nil {
-					return
-				}
-
-				config := tls.Config{
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS13,
-					Rand:         rand.Reader,
-				}
-
-				address := configurations.GetFilesHost() + ":" + fmt.Sprint(port)
-				listener, err := tls.Listen("tcp", address, &config)
-				if err != nil {
-					return
-				}
-
-				_, err = listener.Accept()
-			}(filePath, port)
-
-			response := models.NewResponseMessage(0, []byte(fmt.Sprint(port)))
-			if err := connection.Write(response.GetBytesData()); err != nil {
-				continue
-			}
 		case UPLOAD:
 			if len(message.Args) != 1 {
 				continue
 			}
 
 			filePath := message.Args[0]
+			file, err := os.Create(filePath)
+			if err != nil {
+				_ = SendResponseMessage(connection, 1, "internal error")
+				return
+			}
 
 			port := 10000
 			for {
@@ -141,6 +106,57 @@ func handleConnection(c net.Conn) {
 				}
 				port++
 			}
+
+			go func(filePath string, port int, file *os.File) {
+				defer file.Close()
+				cert, err := shared.GenX509KeyPair()
+				if err != nil {
+					return
+				}
+
+				config := tls.Config{
+					Certificates: []tls.Certificate{cert},
+					MinVersion:   tls.VersionTLS13,
+					Rand:         rand.Reader,
+				}
+
+				address := configurations.GetFilesHost() + ":" + fmt.Sprint(port)
+				listener, err := tls.Listen("tcp", address, &config)
+				if err != nil {
+					return
+				}
+
+				conn, err := listener.Accept()
+				mh := shared.NewMessageHandler(conn)
+
+				_ = mh.ReadFile(file)
+				_ = conn.Close()
+			}(filePath, port, file)
+
+			response := models.NewResponseMessage(0, []byte(fmt.Sprint(port)))
+			if err := connection.Write(response.GetBytesData()); err != nil {
+				continue
+			}
+		case DOWNLOAD:
+			if len(message.Args) != 1 {
+				continue
+			}
+
+			filePath := message.Args[0]
+			_, err := os.Open(filePath)
+			if err != nil {
+				_ = SendResponseMessage(connection, 1, "file does not exist")
+				continue
+			}
+
+			port := 10000
+			for {
+				if IsPortOpen(port) {
+					break
+				}
+				port++
+			}
+			// TODO TEST DOENLOAD AND UPLOAD FUNCTIONLITIES
 
 			go func(filePath string, port int) {
 				cert, err := shared.GenX509KeyPair()
@@ -160,7 +176,16 @@ func handleConnection(c net.Conn) {
 					return
 				}
 
-				_, err = listener.Accept()
+				conn, err := listener.Accept()
+				mh := shared.NewMessageHandler(conn)
+
+				open, err := os.Open(filePath)
+				if err != nil {
+					return
+				}
+
+				_ = mh.SendFile(open)
+				_ = conn.Close()
 			}(filePath, port)
 
 			response := models.NewResponseMessage(0, []byte(fmt.Sprint(port)))

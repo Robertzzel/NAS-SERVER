@@ -57,12 +57,60 @@ func GetFilesFromDirectory(path string) (string, error) {
 	return string(response.Body), nil
 }
 
-func Download(path string) error {
-	return nil
+func Download(path string) (string, error) {
+	config, err := shared.GetTLSConfigs()
+	if err != nil {
+		return "", err
+	}
+	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
+	conn, err := tls.Dial("tcp", address, config)
+	if err != nil {
+		return "", err
+	}
+	mh := shared.NewMessageHandler(conn)
+
+	request := models.NewRequestMessage(0, []string{path})
+	_ = mh.Write(request.GetBytesData())
+
+	rawMsg, err := mh.Read()
+	if err != nil {
+		return "", err
+	}
+
+	response := models.NewResponseMessageFromBytes(rawMsg)
+	if response.Status == 1 {
+		return "", errors.New("cannot download")
+	}
+
+	return string(response.Body), nil
 }
 
-func Upload(path string) error {
-	return nil
+func Upload(path string) (string, error) {
+	config, err := shared.GetTLSConfigs()
+	if err != nil {
+		return "", err
+	}
+	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
+	conn, err := tls.Dial("tcp", address, config)
+	if err != nil {
+		return "", err
+	}
+	mh := shared.NewMessageHandler(conn)
+
+	request := models.NewRequestMessage(1, []string{path})
+	_ = mh.Write(request.GetBytesData())
+
+	rawMsg, err := mh.Read()
+	if err != nil {
+		return "", err
+	}
+
+	response := models.NewResponseMessageFromBytes(rawMsg)
+	if response.Status == 1 {
+		return "", errors.New("cannot download")
+	}
+
+	return string(response.Body), nil
 }
 
 func CreateDirectory(path string) error {
