@@ -10,15 +10,10 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
-	"net"
 )
 
 func main() {
 	log.Print("Starting server...")
-	err := configurations.UpdateConfigurations()
-	if err != nil {
-		panic(err)
-	}
 
 	log.Print("Starting user service...")
 	databaseService, err := Services.NewDatabaseService()
@@ -66,11 +61,11 @@ func main() {
 			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
 		}
 
-		go handleConnection(conn, databaseService)
+		go handleConnection(tlscon, databaseService)
 	}
 }
 
-func handleConnection(c net.Conn, userService *Services.DatabaseService /*, fileService*/) {
+func handleConnection(c *tls.Conn, userService *Services.DatabaseService /*, fileService*/) {
 	defer c.Close()
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 

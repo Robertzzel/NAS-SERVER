@@ -75,12 +75,7 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
 
-	uploadPort, err := Services.Upload(filename)
-	if err != nil {
-		err = SendResponseMessage(connection, 1, "")
-		return
-	}
-	_ = SendResponseMessage(connection, 0, uploadPort)
+	Services.Upload(filename, connection)
 }
 
 func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
@@ -111,12 +106,7 @@ func HandleDownloadFileOrDirectory(userService *Services.DatabaseService, connec
 	userRootDirectory := filepath.Join(configurations.GetBaseFilesPath(), username)
 	filename = path.Join(userRootDirectory, filename)
 
-	downloadPort, err := Services.Download(filename)
-	if err != nil {
-		err = SendResponseMessage(connection, 1, "")
-		return
-	}
-	_ = SendResponseMessage(connection, 0, downloadPort)
+	Services.Download(filename, connection)
 }
 
 func HandleCreateDirectoryCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
@@ -212,8 +202,8 @@ func HandleLoginCommand(userService *Services.DatabaseService, connection *share
 
 	exists, err := userService.CheckUsernameAndPassword(username, password)
 	if err != nil {
-		log.Println("Username")
 		_ = SendResponseMessage(connection, 1, err.Error())
+		log.Println("login failed")
 		return
 	}
 	if exists {
@@ -222,25 +212,30 @@ func HandleLoginCommand(userService *Services.DatabaseService, connection *share
 		user.UserRootDirectory = filepath.Join(configurations.GetBaseFilesPath(), username)
 	} else {
 		_ = SendResponseMessage(connection, 1, "invalid username or password")
+		log.Println("login failed")
 		return
 	}
 
 	_ = SendResponseMessage(connection, 0, "success")
+	log.Println("login succesfull")
 }
 
 func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, user *models.User, message *models.RequestMessage) {
 	if !user.IsAuthenticated {
+		log.Printf("Error user is not authenticated")
 		_ = SendResponseMessage(connection, 1, "user is not authenticated")
 		return
 	}
 
 	if len(message.Args) != 1 {
+		log.Printf("Error invalid number of arguments")
 		_ = SendResponseMessage(connection, 1, "invalid number of arguments")
 		return
 	}
 
 	directoryPath := message.Args[0]
 	if !IsPathSafe(directoryPath) {
+		log.Printf("Error bad path")
 		_ = SendResponseMessage(connection, 1, "bad path")
 		return
 	}
@@ -248,10 +243,13 @@ func HandleListFilesAndDirectoriesCommand(connection *shared.MessageHandler, use
 	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
 	directory, err := Services.GetFilesFromDirectory(directoryPath)
 	if err != nil {
+		log.Printf("Error internal error on getting the files,", directory, err.Error())
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}
+	log.Printf(string(directory))
 	if err := SendResponseMessage(connection, 0, directory); err != nil {
+		log.Printf("Error internal error")
 		_ = SendResponseMessage(connection, 1, "internal error")
 		return
 	}

@@ -4,10 +4,9 @@ import (
 	"NAS-Server-Web/shared"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
-	"crypto/rand"
-	"crypto/tls"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"net"
 	"strconv"
 )
 
@@ -16,20 +15,8 @@ type DatabaseService struct {
 }
 
 func NewDatabaseService() (*DatabaseService, error) {
-	cert, err := shared.GenX509KeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	config := tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		MinVersion:         tls.VersionTLS13,
-		Rand:               rand.Reader,
-		InsecureSkipVerify: true,
-	}
-
-	address := configurations.GetDatabaseHost() + ":" + configurations.GetDatabasePort() // schimba cu detaliile bune
-	conn, err := tls.Dial("tcp", address, &config)
+	address := configurations.GetDatabaseHost() + ":" + configurations.GetDatabasePort()
+	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +35,7 @@ func (db *DatabaseService) CheckUsernameAndPassword(username, password string) (
 	}
 
 	response := models.NewResponseMessageFromBytes(rawMsg)
-	return response.Body[0] == 0, nil
+	return response.Body[0] == 1, nil
 }
 
 func (db *DatabaseService) GetUserAllocatedMemory(username string) (int, error) {

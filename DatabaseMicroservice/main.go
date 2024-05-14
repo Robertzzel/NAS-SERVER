@@ -4,9 +4,7 @@ import (
 	"NAS-Server-Web/shared"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
-	"crypto/rand"
 	"crypto/sha256"
-	"crypto/tls"
 	"database/sql"
 	"encoding/binary"
 	"errors"
@@ -18,10 +16,6 @@ import (
 )
 
 func main() {
-	if err := configurations.UpdateConfigurations(); err != nil {
-		return
-	}
-
 	db, err := sql.Open("sqlite3", configurations.GetDatabasePath())
 	if err != nil {
 		panic(err)
@@ -32,19 +26,9 @@ func main() {
 		panic(err)
 	}
 
-	cert, err := shared.GenX509KeyPair()
-	if err != nil {
-		panic(err)
-	}
-
-	config := tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
-		Rand:         rand.Reader,
-	}
 	address := configurations.GetDatabaseHost() + ":" + configurations.GetDatabasePort()
 	log.Printf("Starting at " + address + " ...")
-	listener, err := tls.Listen("tcp", address, &config)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		panic(err)
 	}
@@ -56,14 +40,7 @@ func main() {
 			break
 		}
 
-		log.Printf("Accepted connection from %s", conn.RemoteAddr())
-		tlscon, ok := conn.(*tls.Conn)
-		if !ok {
-			log.Printf("Connection does not have a valid TLS handshake from %s", conn.RemoteAddr())
-			continue
-		}
-
-		go handleConnection(tlscon, db)
+		go handleConnection(conn, db)
 	}
 
 }

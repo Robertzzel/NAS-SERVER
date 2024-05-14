@@ -4,18 +4,14 @@ import (
 	"NAS-Server-Web/shared"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
-	"crypto/tls"
 	"errors"
+	"io"
+	"net"
 	"strconv"
 )
 
 func GetUserUsedMemory(username string) (int64, error) {
-	config, err := shared.GetTLSConfigs()
-	if err != nil {
-		return 0, err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetDatabasePort()
-	conn, err := tls.Dial("tcp", address, config)
+	conn, err := GetFileServerConnection()
 	if err != nil {
 		return 0, err
 	}
@@ -34,66 +30,42 @@ func GetUserUsedMemory(username string) (int64, error) {
 }
 
 func GetFilesFromDirectory(path string) (string, error) {
-	config, err := shared.GetTLSConfigs()
+	conn, err := GetFileServerConnection()
 	if err != nil {
-		return "", err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
-	if err != nil {
-		return "", err
+		return "cannot get file server connection", err
 	}
 	mh := shared.NewMessageHandler(conn)
 
-	request := models.NewRequestMessage(3, []string{path})
+	request := models.NewRequestMessage(2, []string{path})
 	_ = mh.Write(request.GetBytesData())
 
 	rawMsg, err := mh.Read()
 	if err != nil {
-		return "", err
+		return "cannot read the server response", err
 	}
 
 	response := models.NewResponseMessageFromBytes(rawMsg)
 	return string(response.Body), nil
 }
 
-func Download(path string) (string, error) {
-	config, err := shared.GetTLSConfigs()
+func Download(path string, clientC *shared.MessageHandler) {
+	conn, err := GetFileServerConnection()
 	if err != nil {
-		return "", err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
-	if err != nil {
-		return "", err
+		return
 	}
 	mh := shared.NewMessageHandler(conn)
 
 	request := models.NewRequestMessage(0, []string{path})
 	_ = mh.Write(request.GetBytesData())
 
-	rawMsg, err := mh.Read()
-	if err != nil {
-		return "", err
-	}
-
-	response := models.NewResponseMessageFromBytes(rawMsg)
-	if response.Status == 1 {
-		return "", errors.New("cannot download")
-	}
-
-	return string(response.Body), nil
+	io.Copy(clientC.Conn, conn)
+	conn.Close()
 }
 
-func Upload(path string) (string, error) {
-	config, err := shared.GetTLSConfigs()
+func Upload(path string, clientMh *shared.MessageHandler) {
+	conn, err := GetFileServerConnection()
 	if err != nil {
-		return "", err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
-	if err != nil {
-		return "", err
+		return
 	}
 	mh := shared.NewMessageHandler(conn)
 
@@ -102,24 +74,20 @@ func Upload(path string) (string, error) {
 
 	rawMsg, err := mh.Read()
 	if err != nil {
-		return "", err
+		return
 	}
 
-	response := models.NewResponseMessageFromBytes(rawMsg)
-	if response.Status == 1 {
-		return "", errors.New("cannot download")
-	}
+	_ = clientMh.Write(rawMsg)
+	//TODO PROBLEME DOAR LA UPLOAD
 
-	return string(response.Body), nil
+	io.Copy(clientMh.Conn, conn)
 }
 
 func CreateDirectory(path string) error {
-	config, err := shared.GetTLSConfigs()
+	conn, err := GetFileServerConnection()
 	if err != nil {
 		return err
 	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
 	if err != nil {
 		return err
 	}
@@ -141,12 +109,7 @@ func CreateDirectory(path string) error {
 }
 
 func RenameFileOrDirectory(fullPath, newFullPath string) error {
-	config, err := shared.GetTLSConfigs()
-	if err != nil {
-		return err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
+	conn, err := GetFileServerConnection()
 	if err != nil {
 		return err
 	}
@@ -168,12 +131,7 @@ func RenameFileOrDirectory(fullPath, newFullPath string) error {
 }
 
 func DeleteFileOrDirectory(fullPath string) error {
-	config, err := shared.GetTLSConfigs()
-	if err != nil {
-		return err
-	}
-	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
-	conn, err := tls.Dial("tcp", address, config)
+	conn, err := GetFileServerConnection()
 	if err != nil {
 		return err
 	}
@@ -192,4 +150,14 @@ func DeleteFileOrDirectory(fullPath string) error {
 		return errors.New("cannot delete the directory")
 	}
 	return nil
+}
+
+func GetFileServerConnection() (net.Conn, error) {
+	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }

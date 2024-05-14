@@ -4,8 +4,6 @@ import (
 	"NAS-Server-Web/shared"
 	"NAS-Server-Web/shared/configurations"
 	"NAS-Server-Web/shared/models"
-	"crypto/rand"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"log"
@@ -29,24 +27,9 @@ const (
 )
 
 func main() {
-	cert, err := shared.GenX509KeyPair()
-	if err != nil {
-		panic(err)
-	}
-
-	config := tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS13,
-		Rand:         rand.Reader,
-	}
-
-	err = configurations.UpdateConfigurations()
-	if err != nil {
-		return
-	}
 	address := configurations.GetFilesHost() + ":" + configurations.GetFilesPort()
 	log.Printf("Starting at " + address + "...")
-	listener, err := tls.Listen("tcp", address, &config)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		panic(err)
 	}
@@ -58,14 +41,7 @@ func main() {
 			break
 		}
 
-		log.Printf("Accepted connection from %s", conn.RemoteAddr())
-		tlscon, ok := conn.(*tls.Conn)
-		if !ok {
-			log.Printf("Connection does not have a valid TLS handshake from %s", conn.RemoteAddr())
-			continue
-		}
-
-		go handleConnection(tlscon)
+		go handleConnection(conn)
 	}
 }
 
@@ -73,209 +49,139 @@ func handleConnection(c net.Conn) {
 	defer c.Close()
 	connection := shared.NewMessageHandler(c)
 
-	for {
-		rawMessage, err := connection.Read()
-		if err != nil {
-			log.Print("Closed connection with ", c.RemoteAddr())
+	rawMessage, err := connection.Read()
+	if err != nil {
+		log.Print("Closed connection with ", c.RemoteAddr())
+		return
+	}
+
+	message, err := models.NewRequestMessageFromBytes(rawMessage)
+	if err != nil {
+		log.Print("Bad message structure from ", c.RemoteAddr())
+		return
+	}
+
+	switch message.Command {
+	case UPLOAD:
+		if len(message.Args) != 1 {
 			return
 		}
 
-		message, err := models.NewRequestMessageFromBytes(rawMessage)
+		filePath := message.Args[0]
+		file, err := os.Create(filePath)
 		if err != nil {
-			log.Print("Bad message structure from ", c.RemoteAddr())
-			continue
+			_ = SendResponseMessage(connection, 1, "internal error")
+			return
 		}
 
-		switch message.Command {
-		case UPLOAD:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			filePath := message.Args[0]
-			file, err := os.Create(filePath)
-			if err != nil {
-				_ = SendResponseMessage(connection, 1, "internal error")
-				return
-			}
-
-			port := 10000
-			for {
-				if IsPortOpen(port) {
-					break
-				}
-				port++
-			}
-
-			go func(filePath string, port int, file *os.File) {
-				defer file.Close()
-				cert, err := shared.GenX509KeyPair()
-				if err != nil {
-					return
-				}
-
-				config := tls.Config{
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS13,
-					Rand:         rand.Reader,
-				}
-
-				address := configurations.GetFilesHost() + ":" + fmt.Sprint(port)
-				listener, err := tls.Listen("tcp", address, &config)
-				if err != nil {
-					return
-				}
-
-				conn, err := listener.Accept()
-				mh := shared.NewMessageHandler(conn)
-
-				_ = mh.ReadFile(file)
-				_ = conn.Close()
-			}(filePath, port, file)
-
-			response := models.NewResponseMessage(0, []byte(fmt.Sprint(port)))
-			if err := connection.Write(response.GetBytesData()); err != nil {
-				continue
-			}
-		case DOWNLOAD:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			filePath := message.Args[0]
-			_, err := os.Open(filePath)
-			if err != nil {
-				_ = SendResponseMessage(connection, 1, "file does not exist")
-				continue
-			}
-
-			port := 10000
-			for {
-				if IsPortOpen(port) {
-					break
-				}
-				port++
-			}
-			// TODO TEST DOENLOAD AND UPLOAD FUNCTIONLITIES
-
-			go func(filePath string, port int) {
-				cert, err := shared.GenX509KeyPair()
-				if err != nil {
-					return
-				}
-
-				config := tls.Config{
-					Certificates: []tls.Certificate{cert},
-					MinVersion:   tls.VersionTLS13,
-					Rand:         rand.Reader,
-				}
-
-				address := configurations.GetFilesHost() + ":" + fmt.Sprint(port)
-				listener, err := tls.Listen("tcp", address, &config)
-				if err != nil {
-					return
-				}
-
-				conn, err := listener.Accept()
-				mh := shared.NewMessageHandler(conn)
-
-				open, err := os.Open(filePath)
-				if err != nil {
-					return
-				}
-
-				_ = mh.SendFile(open)
-				_ = conn.Close()
-			}(filePath, port)
-
-			response := models.NewResponseMessage(0, []byte(fmt.Sprint(port)))
-			if err := connection.Write(response.GetBytesData()); err != nil {
-				continue
-			}
-		case LIST:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			directoryPath := message.Args[0]
-
-			directory, err := GetFilesFromDirectory(directoryPath)
-			if err != nil {
-				continue
-			}
-
-			resultMessage := ""
-			for file := range directory {
-				resultMessage += directory[file].Name + "\n" + strconv.FormatInt(directory[file].Size, 10) + "\n" + strconv.FormatBool(directory[file].IsDir) + "\n" + directory[file].Type + "\n" + strconv.FormatInt(directory[file].Created, 10) + "\x1c"
-			}
-			if len(resultMessage) > 0 {
-				resultMessage = resultMessage[:len(resultMessage)-1]
-			}
-
-			response := models.NewResponseMessage(0, []byte(resultMessage))
-			if err := connection.Write(response.GetBytesData()); err != nil {
-				continue
-			}
-		case USED_MEMORY:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			userName := message.Args[0]
-
-			memory, err := GetUserUsedMemory(userName)
-			if err != nil {
-				continue
-			}
-
-			responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
-			_ = connection.Write(responseMessage.GetBytesData())
-		case CREATE:
-			if len(message.Args) != 1 {
-				continue
-			}
-
-			fullPath := message.Args[0]
-
-			if err := CreateDirectory(fullPath); err != nil {
-				_ = SendResponseMessage(connection, 1, "")
-				return
-			}
-
-			_ = SendResponseMessage(connection, 0, "")
-		case RENAME:
-			if len(message.Args) != 2 {
-				_ = SendResponseMessage(connection, 1, "")
-				continue
-			}
-
-			fullPath := message.Args[0]
-			newFullPath := message.Args[1]
-
-			if err = RenameFileOrDirectory(fullPath, newFullPath); err != nil {
-				_ = SendResponseMessage(connection, 1, "")
-				continue
-			}
-
-			_ = SendResponseMessage(connection, 0, "")
-		case DELETE:
-			if len(message.Args) != 1 {
-				_ = SendResponseMessage(connection, 1, "")
-				continue
-			}
-
-			fullPath := message.Args[0]
-
-			if err = DeleteFileOrDirectory(fullPath); err != nil {
-				_ = SendResponseMessage(connection, 1, "")
-				continue
-			}
-
-			_ = SendResponseMessage(connection, 0, "")
-		default:
-			continue
+		response := models.NewResponseMessage(0, []byte(""))
+		if err := connection.Write(response.GetBytesData()); err != nil {
+			return
 		}
+		_ = connection.ReadFile(file)
+		_ = file.Close()
+	case DOWNLOAD:
+		if len(message.Args) != 1 {
+			return
+		}
+
+		filePath := message.Args[0]
+		file, err := os.Open(filePath)
+		if err != nil {
+			_ = SendResponseMessage(connection, 1, "file does not exist")
+			return
+		}
+
+		response := models.NewResponseMessage(0, []byte(""))
+		if err := connection.Write(response.GetBytesData()); err != nil {
+			return
+		}
+		_ = connection.SendFile(file)
+		_ = file.Close()
+	case LIST:
+		if len(message.Args) != 1 {
+			return
+		}
+
+		directoryPath := message.Args[0]
+
+		directory, err := GetFilesFromDirectory(directoryPath)
+		if err != nil {
+			return
+		}
+
+		resultMessage := ""
+		for file := range directory {
+			resultMessage += directory[file].Name + "\n" + strconv.FormatInt(directory[file].Size, 10) + "\n" + strconv.FormatBool(directory[file].IsDir) + "\n" + directory[file].Type + "\n" + strconv.FormatInt(directory[file].Created, 10) + "\x1c"
+		}
+		if len(resultMessage) > 0 {
+			resultMessage = resultMessage[:len(resultMessage)-1]
+		}
+
+		response := models.NewResponseMessage(0, []byte(resultMessage))
+		if err := connection.Write(response.GetBytesData()); err != nil {
+			return
+		}
+	case USED_MEMORY:
+		if len(message.Args) != 1 {
+			return
+		}
+
+		userName := message.Args[0]
+
+		memory, err := GetUserUsedMemory(userName)
+		if err != nil {
+			return
+		}
+
+		responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
+		_ = connection.Write(responseMessage.GetBytesData())
+	case CREATE:
+		if len(message.Args) != 1 {
+			return
+		}
+
+		fullPath := message.Args[0]
+
+		if err := CreateDirectory(fullPath); err != nil {
+			_ = SendResponseMessage(connection, 1, "")
+			return
+		}
+
+		_ = SendResponseMessage(connection, 0, "")
+	case RENAME:
+		if len(message.Args) != 2 {
+			_ = SendResponseMessage(connection, 1, "")
+			return
+		}
+
+		fullPath := message.Args[0]
+		newFullPath := message.Args[1]
+
+		if err = RenameFileOrDirectory(fullPath, newFullPath); err != nil {
+			_ = SendResponseMessage(connection, 1, "")
+			return
+		}
+
+		_ = SendResponseMessage(connection, 0, "")
+	case DELETE:
+		if len(message.Args) != 1 {
+			_ = SendResponseMessage(connection, 1, "")
+			return
+		}
+
+		fullPath := message.Args[0]
+
+		if err = DeleteFileOrDirectory(fullPath); err != nil {
+			_ = SendResponseMessage(connection, 1, "")
+			return
+		}
+
+		_ = SendResponseMessage(connection, 0, "")
+	default:
+		return
 	}
+
 }
 
 func IsPortOpen(port int) bool {
