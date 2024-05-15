@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 const (
@@ -74,12 +73,13 @@ func handleConnection(c net.Conn) {
 			return
 		}
 
-		response := models.NewResponseMessage(0, []byte(""))
+		response := models.NewResponseMessage(0, []byte("success"))
 		if err := connection.Write(response.GetBytesData()); err != nil {
 			return
 		}
 		_ = connection.ReadFile(file)
 		_ = file.Close()
+		log.Printf("Fisier scris, confirmare trimisa")
 	case DOWNLOAD:
 		if len(message.Args) != 1 {
 			return
@@ -128,11 +128,14 @@ func handleConnection(c net.Conn) {
 		}
 
 		userName := message.Args[0]
+		log.Printf("Getting memory for " + userName)
 
 		memory, err := GetUserUsedMemory(userName)
 		if err != nil {
+			log.Printf("Getting memory for " + userName + " error: " + err.Error())
 			return
 		}
+		log.Printf("Getting memory for " + userName + " " + fmt.Sprint(memory))
 
 		responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
 		_ = connection.Write(responseMessage.GetBytesData())
@@ -181,20 +184,10 @@ func handleConnection(c net.Conn) {
 	default:
 		return
 	}
-
-}
-
-func IsPortOpen(port int) bool {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", fmt.Sprint(port)), time.Second)
-	if err != nil {
-		return false
-	}
-	defer conn.Close()
-	return true
 }
 
 func GetUserUsedMemory(username string) (int64, error) {
-	entries, err := os.ReadDir(configurations.GetDatabasePath())
+	entries, err := os.ReadDir(configurations.GetBaseFilesPath())
 	if err != nil {
 		return 0, err
 	}

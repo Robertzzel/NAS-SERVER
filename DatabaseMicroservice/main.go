@@ -42,7 +42,6 @@ func main() {
 
 		go handleConnection(conn, db)
 	}
-
 }
 
 func handleConnection(c net.Conn, db *sql.DB) {

@@ -6,6 +6,7 @@ import (
 	"NAS-Server-Web/shared/models"
 	"errors"
 	"io"
+	"log"
 	"net"
 	"strconv"
 )
@@ -65,6 +66,7 @@ func Download(path string, clientC *shared.MessageHandler) {
 func Upload(path string, clientMh *shared.MessageHandler) {
 	conn, err := GetFileServerConnection()
 	if err != nil {
+		log.Println("UPLOAD: cannot get connection")
 		return
 	}
 	mh := shared.NewMessageHandler(conn)
@@ -74,13 +76,20 @@ func Upload(path string, clientMh *shared.MessageHandler) {
 
 	rawMsg, err := mh.Read()
 	if err != nil {
+		log.Println("UPLOAD: canno read from file service")
 		return
 	}
 
-	_ = clientMh.Write(rawMsg)
-	//TODO PROBLEME DOAR LA UPLOAD
+	err = clientMh.Write(rawMsg)
+	if err != nil {
+		log.Println("UPLOAD: cannot write to client")
+		return
+	}
+	log.Println("UPLOAD: sending")
 
-	io.Copy(clientMh.Conn, conn)
+	io.Copy(conn, clientMh.Conn) // TODO FISERUL SE TRIMITE DAR CLIENTUL AFISEAZA EROARe
+
+	log.Println("UPLOAD: file sent")
 }
 
 func CreateDirectory(path string) error {

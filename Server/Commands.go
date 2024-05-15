@@ -51,13 +51,13 @@ func HandleUploadCommand(userService *Services.DatabaseService, connection *shar
 
 	usedMemory, err := Services.GetUserUsedMemory(username)
 	if err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
+		_ = SendResponseMessage(connection, 1, "internal error cannot read used memory"+err.Error())
 		return
 	}
 
 	allocatedMemory, err := userService.GetUserAllocatedMemory(username)
 	if err != nil {
-		_ = SendResponseMessage(connection, 1, "internal error")
+		_ = SendResponseMessage(connection, 1, "internal error cannot get alocated memory")
 		return
 	}
 
