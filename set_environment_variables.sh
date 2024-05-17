@@ -1,0 +1,8 @@
+export SERVER_HOST=127.0.0.1
+export SERVER_PORT=8001
+export FILES_SERVICE_HOST=127.0.0.1
+export FILES_SERVICE_PORT=8002
+export DATABASE_HOST=127.0.0.1
+export DATABASE_PORT=8004
+export DATABASE_PATH=./database.db
+export STORAGE=./files
