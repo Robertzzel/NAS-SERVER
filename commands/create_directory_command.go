@@ -6,24 +6,21 @@ import (
 	"path"
 )
 
-func HandleCreateDirectoryCommand(connection *models.MessageHandler, user *models.User, message *models.MessageForServer) {
-	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
-		return
-	}
-
+func CreateDirectoryCommand(connection models.MessageHandler, message *models.MessageForServer, clientFileDirectory string) {
 	if len(message.Args) != 1 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return
 	}
 
+	// get the requested directory path to create
 	filename := message.Args[0]
 	if !IsPathSafe(filename) {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
 		return
 	}
 
-	filename = path.Join(user.UserRootDirectory, filename)
+	// prepend the user root directory path
+	filename = path.Join(clientFileDirectory, filename)
 	if err := os.Mkdir(filename, os.ModePerm); err != nil {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"NAS-Server-Web/configurations"
 	"NAS-Server-Web/models"
 	_ "encoding/json"
 	"errors"
@@ -85,12 +86,7 @@ func GetUserRemainingMemory(username string) (int64, error) {
 }
 
 func GetUserUsedMemory(username string) (int64, error) {
-	configs, err := NewConfigsService()
-	if err != nil {
-		return 0, err
-	}
-
-	entries, err := os.ReadDir(configs.BaseFilesBath)
+	entries, err := os.ReadDir(configurations.BaseFilesBath)
 	if err != nil {
 		return 0, err
 	}
@@ -103,7 +99,7 @@ func GetUserUsedMemory(username string) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		dirSize, err := DirSize(configs.BaseFilesBath + "/" + info.Name())
+		dirSize, err := DirSize(configurations.BaseFilesBath + "/" + info.Name())
 		if err != nil {
 			return 0, err
 		}

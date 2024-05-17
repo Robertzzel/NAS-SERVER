@@ -2,6 +2,7 @@ package models
 
 import (
 	"archive/zip"
+	"crypto/tls"
 	"encoding/binary"
 	"io"
 	"os"
@@ -10,11 +11,11 @@ import (
 )
 
 type MessageHandler struct {
-	conn io.ReadWriter
+	conn *tls.Conn
 }
 
-func NewMessageHandler(conn io.ReadWriter) *MessageHandler {
-	return &MessageHandler{conn: conn}
+func NewMessageHandler(conn *tls.Conn) MessageHandler {
+	return MessageHandler{conn: conn}
 }
 
 func (mh *MessageHandler) Write(message []byte) error {
@@ -88,4 +89,8 @@ func (mh *MessageHandler) SendDirectoryAsZip(inputDirectory, userRootDirectoryPa
 		return nil
 	}
 	return filepath.Walk(inputDirectory, walker)
+}
+
+func (mh *MessageHandler) Close() error {
+	return mh.conn.Close()
 }
