@@ -1,6 +1,7 @@
 package services
 
 import (
+	"NAS-Server-Web/configurations"
 	"crypto/sha256"
 	"database/sql"
 	"errors"
@@ -16,12 +17,7 @@ var instance *DatabaseService = nil
 
 func NewDatabaseService() (*DatabaseService, error) {
 	if instance == nil {
-		configs, err := NewConfigsService()
-		if err != nil {
-			return nil, err
-		}
-
-		db, err := sql.Open("sqlite3", configs.DatabasePath)
+		db, err := sql.Open("sqlite3", configurations.DatabasePath)
 		if err != nil {
 			return nil, err
 		}

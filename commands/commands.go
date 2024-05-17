@@ -21,10 +21,10 @@ func IsPathSafe(path string) bool {
 	return !strings.Contains(path, "../")
 }
 
-func checkUsernameAndPassword(name, password string) (bool, error) {
+func CheckUsernameAndPassword(name, password string) (bool, error) {
 	db, err := services.NewDatabaseService()
 	if err != nil {
-		return false, errors.New("internal error")
+		return false, errors.New("cannot get database service, " + err.Error())
 	}
 
 	return db.UsernameAndPasswordExists(name, password)

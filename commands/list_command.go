@@ -7,30 +7,28 @@ import (
 	"strconv"
 )
 
-func HandleListFilesAndDirectoriesCommand(connection *models.MessageHandler, user *models.User, message *models.MessageForServer) {
-	if !user.IsAuthenticated {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("user is not authenticated")).Data)
-		return
-	}
-
+func ListCommand(connection models.MessageHandler, message *models.MessageForServer, clientFileDirectory string) {
 	if len(message.Args) != 1 {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
 		return
 	}
 
+	// get the requested directory path
 	directoryPath := message.Args[0]
 	if !IsPathSafe(directoryPath) {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
 		return
 	}
 
-	directoryPath = path.Join(user.UserRootDirectory, directoryPath)
+	// prepend the user root directory path
+	directoryPath = path.Join(clientFileDirectory, directoryPath)
 	directory, err := services.GetFilesFromDirectory(directoryPath)
 	if err != nil {
 		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
 		return
 	}
 
+	//format the message
 	resultMessage := ""
 	for file := range directory {
 		resultMessage += directory[file].Name + "\n" + strconv.FormatInt(directory[file].Size, 10) + "\n" + strconv.FormatBool(directory[file].IsDir) + "\n" + directory[file].Type + "\n" + strconv.FormatInt(directory[file].Created, 10) + "\x1c"

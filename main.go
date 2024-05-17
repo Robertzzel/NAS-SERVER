@@ -2,8 +2,8 @@ package main
 
 import (
 	"NAS-Server-Web/commands"
+	"NAS-Server-Web/configurations"
 	"NAS-Server-Web/models"
-	"NAS-Server-Web/services"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -11,67 +11,77 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"net"
+	"path/filepath"
 	"time"
 )
 
-func handleConnection(c net.Conn) {
-	defer c.Close()
-	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
+func handleConnection(connection models.MessageHandler) {
+	defer connection.Close()
 
-	user := models.NewUser()
-	connection := models.NewMessageHandler(c)
-	for {
-		rawMessage, err := connection.Read()
-		if err != nil {
-			log.Print("Closed connection with ", c.RemoteAddr())
-			return
-		}
+	rawMessage, err := connection.Read()
+	if err != nil {
+		log.Print("Closed connection")
+		return
+	}
 
-		message, err := models.NewMessage(rawMessage)
-		if err != nil {
-			log.Print("Bad message structure from ", c.RemoteAddr())
-			continue
-		}
+	message, err := models.NewMessage(rawMessage)
+	if err != nil {
+		log.Print("Bad message")
+		return
+	}
 
-		switch message.Command {
-		case commands.UploadFile:
-			log.Print("Started UploadFile with params:", message.Args, " ...")
-			commands.HandleUploadCommand(connection, &message)
-			log.Print("Ended UploadFile with params:", message.Args, " ...")
-		case commands.DownloadFileOrDirectory:
-			log.Print("Started DownloadFileOrDirectory with params:", message.Args, " ...")
-			commands.HandleDownloadFileOrDirectory(connection, &user, &message)
-			log.Print("Closing connection...")
-			_ = c.Close()
-			log.Print("Ended DownloadFileOrDirectory with params:", message.Args, " ...")
-		case commands.CreateDirectory:
-			log.Print("Started CreateDirectory with params:", message.Args, " ...")
-			commands.HandleCreateDirectoryCommand(connection, &user, &message)
-			log.Print("Ended CreateDirectory with params:", message.Args, " ...")
-		case commands.RemoveFileOrDirectory:
-			log.Print("Started RemoveFileOrDirectory with params:", message.Args, " ...")
-			commands.HandleRemoveFileOrDirectoryCommand(connection, &user, &message)
-			log.Print("Ended RemoveFileOrDirectory with params:", message.Args, " ...")
-		case commands.RenameFileOrDirectory:
-			log.Print("Started RenameFileOrDirectory with params:", message.Args, " ...")
-			commands.HandleRenameFileOrDirectoryCommand(connection, &user, &message)
-			log.Print("Ended RenameFileOrDirectory with params:", message.Args, " ...")
-		case commands.Login:
-			log.Print("Started Login with params:", message.Args, " ...")
-			commands.HandleLoginCommand(connection, &user, &message)
-			log.Print("Ended Login with params:", message.Args, " ...")
-		case commands.ListFilesAndDirectories:
-			log.Print("Started ListFilesAndDirectories with params:", message.Args, " ...")
-			commands.HandleListFilesAndDirectoriesCommand(connection, &user, &message)
-			log.Print("Ended ListFilesAndDirectories with params:", message.Args, " ...")
-		case commands.Info:
-			log.Print("Started Info with params:", message.Args, " ...")
-			commands.HandleInfoCommand(connection, &user, &message)
-			log.Print("Ended Info with params:", message.Args, " ...")
-		default:
-			continue
-		}
+	if len(message.Args) < 2 {
+		_ = connection.Write(models.NewMessageForClient(1, []byte("not enough arguments for login")).Data)
+	}
+
+	username := message.Args[0]
+	password := message.Args[1]
+	exists, err := commands.CheckUsernameAndPassword(username, password)
+	if err != nil {
+		_ = connection.Write(models.NewMessageForClient(1, []byte("error while checking username and password")).Data)
+	}
+	if !exists {
+		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid credentials")).Data)
+	}
+	// remove login credentials from message params
+	message.Args = message.Args[2:]
+
+	userDirectory := filepath.Join(configurations.BaseFilesBath, username)
+	switch message.Command {
+	case commands.UploadFile:
+		log.Print("Started UploadFile with params:", message.Args, " ...")
+		commands.UploadCommand(connection, &message, username, userDirectory)
+		log.Print("Ended UploadFile with params:", message.Args, " ...")
+	case commands.DownloadFileOrDirectory:
+		log.Print("Started DownloadFileOrDirectory with params:", message.Args, " ...")
+		commands.DownloadCommand(connection, &message, userDirectory)
+		log.Print("Ended DownloadFileOrDirectory with params:", message.Args, " ...")
+	case commands.CreateDirectory:
+		log.Print("Started CreateDirectory with params:", message.Args, " ...")
+		commands.CreateDirectoryCommand(connection, &message, userDirectory)
+		log.Print("Ended CreateDirectory with params:", message.Args, " ...")
+	case commands.RemoveFileOrDirectory:
+		log.Print("Started RemoveFileOrDirectory with params:", message.Args, " ...")
+		commands.RemoveCommand(connection, &message, userDirectory)
+		log.Print("Ended RemoveFileOrDirectory with params:", message.Args, " ...")
+	case commands.RenameFileOrDirectory:
+		log.Print("Started RenameFileOrDirectory with params:", message.Args, " ...")
+		commands.RenameCommand(connection, &message, userDirectory)
+		log.Print("Ended RenameFileOrDirectory with params:", message.Args, " ...")
+	case commands.Login:
+		log.Print("Started Login with params:", message.Args, " ...")
+		_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+		log.Print("Ended Login with params:", message.Args, " ...")
+	case commands.ListFilesAndDirectories:
+		log.Print("Started ListFilesAndDirectories with params:", message.Args, " ...")
+		commands.ListCommand(connection, &message, userDirectory)
+		log.Print("Ended ListFilesAndDirectories with params:", message.Args, " ...")
+	case commands.Info:
+		log.Print("Started Info with params:", message.Args, " ...")
+		commands.InfoCommand(connection, &message, username)
+		log.Print("Ended Info with params:", message.Args, " ...")
+	default:
+		return
 	}
 }
 
@@ -109,7 +119,7 @@ func GenX509KeyPair() (tls.Certificate, error) {
 
 func main() {
 	log.Print("Starting server...")
-	service, err := services.NewConfigsService()
+	err := configurations.UpdateConfigurations()
 	if err != nil {
 		panic(err)
 	}
@@ -125,7 +135,7 @@ func main() {
 		Rand:         rand.Reader,
 	}
 
-	address := service.Host + ":" + service.Port
+	address := configurations.Host + ":" + configurations.Port
 	log.Print("Creating a TLS Server on ", address, "...")
 	listener, err := tls.Listen("tcp", address, &config)
 	if err != nil {
@@ -152,6 +162,9 @@ func main() {
 		for _, v := range state.PeerCertificates {
 			log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
 		}
-		go handleConnection(conn)
+
+		fmt.Printf("Serving %s\n", tlscon.RemoteAddr().String())
+		messageHandler := models.NewMessageHandler(tlscon)
+		go handleConnection(messageHandler)
 	}
 }
