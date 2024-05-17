@@ -31,17 +31,17 @@ func handleConnection(connection models.MessageHandler) {
 	}
 
 	if len(message.Args) < 2 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("not enough arguments for login")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("not enough arguments for login")...))
 	}
 
 	username := message.Args[0]
 	password := message.Args[1]
 	exists, err := commands.CheckUsernameAndPassword(username, password)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("error while checking username and password")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("error while checking username and password")...))
 	}
 	if !exists {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid credentials")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("invalid credentials")...))
 	}
 	// remove login credentials from message params
 	message.Args = message.Args[2:]
@@ -70,7 +70,7 @@ func handleConnection(connection models.MessageHandler) {
 		log.Print("Ended RenameFileOrDirectory with params:", message.Args, " ...")
 	case commands.Login:
 		log.Print("Started Login with params:", message.Args, " ...")
-		_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+		_ = connection.Write(append([]byte{0}, []byte("")...))
 		log.Print("Ended Login with params:", message.Args, " ...")
 	case commands.ListFilesAndDirectories:
 		log.Print("Started ListFilesAndDirectories with params:", message.Args, " ...")

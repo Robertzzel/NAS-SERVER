@@ -6,16 +6,16 @@ import (
 	"path"
 )
 
-func RemoveCommand(connection models.MessageHandler, message *models.MessageForServer, clientFileDirectory string) {
+func RemoveCommand(connection models.MessageHandler, message *models.Message, clientFileDirectory string) {
 	if len(message.Args) != 1 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("invalid number of arguments")...))
 		return
 	}
 
 	// get the requested file
 	filename := message.Args[0]
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("bad path")...))
 		return
 	}
 
@@ -23,13 +23,13 @@ func RemoveCommand(connection models.MessageHandler, message *models.MessageForS
 	filename = path.Join(clientFileDirectory, filename)
 	_, err := os.Stat(filename)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 	if err := os.RemoveAll(filename); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	_ = connection.Write(append([]byte{0}, []byte("")...))
 }

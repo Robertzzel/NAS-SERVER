@@ -6,9 +6,9 @@ import (
 	"path"
 )
 
-func RenameCommand(connection models.MessageHandler, message *models.MessageForServer, clientFileDirectory string) {
+func RenameCommand(connection models.MessageHandler, message *models.Message, clientFileDirectory string) {
 	if len(message.Args) != 2 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("invalid number of arguments")...))
 		return
 	}
 
@@ -16,7 +16,7 @@ func RenameCommand(connection models.MessageHandler, message *models.MessageForS
 	filename := message.Args[0]
 	newFilename := message.Args[1]
 	if !IsPathSafe(filename) && !IsPathSafe(newFilename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("bad path")...))
 		return
 	}
 
@@ -25,9 +25,9 @@ func RenameCommand(connection models.MessageHandler, message *models.MessageForS
 	newFilename = path.Join(clientFileDirectory, newFilename)
 
 	if err := os.Rename(filename, newFilename); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("success")).Data)
+	_ = connection.Write(append([]byte{0}, []byte("")...))
 }

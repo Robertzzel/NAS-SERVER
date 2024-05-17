@@ -5,17 +5,17 @@ import (
 	"strings"
 )
 
-type MessageForServer struct {
+type Message struct {
 	Command byte
 	Args    []string
 }
 
-func NewMessage(command []byte) (MessageForServer, error) {
-	message := MessageForServer{}
+func NewMessage(command []byte) (Message, error) {
+	message := Message{}
 	message.Command = command[0]
 
 	if len(command) == 0 {
-		return MessageForServer{}, errors.New("invalid message")
+		return Message{}, errors.New("invalid message")
 	}
 
 	if len(command) > 1 {

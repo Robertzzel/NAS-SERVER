@@ -8,9 +8,9 @@ import (
 	"strconv"
 )
 
-func UploadCommand(connection models.MessageHandler, message *models.MessageForServer, clientUsername string, userFileDirectory string) {
+func UploadCommand(connection models.MessageHandler, message *models.Message, clientUsername string, userFileDirectory string) {
 	if len(message.Args) != 2 {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid number of arguments")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("invalid number of arguments")...))
 		return
 	}
 
@@ -18,23 +18,23 @@ func UploadCommand(connection models.MessageHandler, message *models.MessageForS
 	filename := message.Args[0]
 	size, err := strconv.Atoi(message.Args[1])
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("invalid size")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("invalid size")...))
 		return
 	}
 
 	// check if the user has enough memory
 	remainingMemory, err := services.GetUserRemainingMemory(clientUsername)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 	if remainingMemory < int64(size) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("no memory for the upload")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("no memory for the upload")...))
 		return
 	}
 
 	if !IsPathSafe(filename) {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("bad path")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("bad path")...))
 		return
 	}
 
@@ -42,18 +42,18 @@ func UploadCommand(connection models.MessageHandler, message *models.MessageForS
 	filename = path.Join(userFileDirectory, filename)
 	file, err := os.Create(filename)
 	if err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 	defer file.Close()
 
 	// send confirmation message so that the client knows it can send the file contents
-	_ = connection.Write(models.NewMessageForClient(0, []byte("go on")).Data)
+	_ = connection.Write(append([]byte{0}, []byte("")...))
 
 	if err = connection.ReadFile(file); err != nil {
-		_ = connection.Write(models.NewMessageForClient(1, []byte("internal error")).Data)
+		_ = connection.Write(append([]byte{1}, []byte("internal error")...))
 		return
 	}
 
-	_ = connection.Write(models.NewMessageForClient(0, []byte("")).Data)
+	_ = connection.Write(append([]byte{0}, []byte("")...))
 }
