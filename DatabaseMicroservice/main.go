@@ -9,14 +9,18 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"net"
 	"strconv"
 )
 
 func main() {
-	db, err := sql.Open("sqlite3", configurations.GetDatabasePath())
+	if configurations.GetDatabasePort() == "" {
+		panic("no port given")
+	}
+	connectionString := "admin:12345678@tcp(database-1.cz06q2i0g548.us-east-1.rds.amazonaws.com:3306)/cc"
+	db, err := sql.Open("mysql", connectionString)
 	if err != nil {
 		panic(err)
 	}
@@ -64,11 +68,11 @@ func handleConnection(c net.Conn, db *sql.DB) {
 		switch message.Command {
 		case 0: // check username and password
 			if len(message.Args) != 2 {
-				continue
+				panic("wrong number of params")
 			}
 			exists, err := UsernameAndPasswordExists(db, message.Args[0], message.Args[1])
 			if err != nil {
-				continue
+				panic("error while checking eistan e")
 			}
 			var response []byte
 			if exists {
@@ -80,31 +84,31 @@ func handleConnection(c net.Conn, db *sql.DB) {
 			_ = connection.Write(responseMessage.GetBytesData())
 		case 1: // get user allocated memory
 			if len(message.Args) != 1 {
-				continue
+				panic("wrong number of params")
 			}
 			memory, err := GetUserAllocatedMemory(db, message.Args[0])
 			if err != nil {
-				continue
+				panic("error while getting alocated memory")
 			}
 			responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint(memory)))
 			_ = connection.Write(responseMessage.GetBytesData())
 		case 2: // add user
 			log.Printf("Checking params...")
 			if len(message.Args) != 3 {
-				log.Printf("Wrong number of params " + fmt.Sprint(len(message.Args)) + "...")
-				continue
+				panic("Wrong number of params " + fmt.Sprint(len(message.Args)) + "...")
 			}
 
 			memory, err := strconv.Atoi(message.Args[2])
 			if err != nil {
-				continue
+				panic("memeory is not a number")
 			}
 
 			log.Printf("Adding user...")
 			if err = AddUser(db, message.Args[0], message.Args[1], memory); err != nil {
-				continue
+				panic("error while adding user " + err.Error())
 			}
 
+			log.Printf("User added.")
 			responseMessage := models.NewResponseMessage(0, []byte(fmt.Sprint("Success")))
 
 			_ = connection.Write(responseMessage.GetBytesData())
@@ -139,10 +143,10 @@ func AddUser(db *sql.DB, username, password string, memory int) error {
 
 func MigrateDatabase(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS User(
-    	Id integer PRIMARY KEY,
+    	Id integer AUTO_INCREMENT PRIMARY KEY,
 		Name varchar(255) UNIQUE NOT NULL,
 		Password varchar(255) NOT NULL,
-    	AllocatedMemory integer NOT NULL
+    	AllocatedMemory BIGINT NOT NULL
     )`)
 	if err != nil {
 		return err

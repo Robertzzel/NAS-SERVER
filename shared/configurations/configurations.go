@@ -13,7 +13,7 @@ func GetServerPort() string {
 }
 
 func GetFilesHost() string {
-	return os.Getenv("DATABASE_HOST")
+	return os.Getenv("FILES_SERVICE_HOST")
 }
 
 func GetFilesPort() string {
@@ -21,15 +21,11 @@ func GetFilesPort() string {
 }
 
 func GetDatabaseHost() string {
-	return os.Getenv("FILES_SERVICE_HOST")
+	return os.Getenv("DATABASE_HOST")
 }
 
 func GetDatabasePort() string {
 	return os.Getenv("DATABASE_PORT")
-}
-
-func GetDatabasePath() string {
-	return os.Getenv("DATABASE_PATH")
 }
 
 func GetBaseFilesPath() string {

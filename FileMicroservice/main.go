@@ -200,7 +200,7 @@ func GetUserUsedMemory(username string) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		dirSize, err := dirSize(configurations.GetDatabasePath() + "/" + info.Name())
+		dirSize, err := dirSize(configurations.GetBaseFilesPath() + "/" + info.Name())
 		if err != nil {
 			return 0, err
 		}
